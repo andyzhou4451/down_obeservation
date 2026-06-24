@@ -114,16 +114,16 @@ loginctl enable-linger "$USER"
 
 Use `deploy/cron.example` if systemd timers are unavailable.
 
-## Slurm / HPC alternative
+## TH-HPC4 / GPU-system scheduler alternative
 
-For a supercomputer, submit the example batch job from the repository root:
+On TH-HPC4, submit jobs from the login node with `yhbatch`. The template uses the `debug` CPU partition because this downloader is network/IO-bound and resumes incomplete `.part` files:
 
 ```bash
 mkdir -p ../data/_logs
-sbatch deploy/slurm.sbatch.example
+yhbatch deploy/th-hpc4-gdex-download.sub.example
 ```
 
-The Slurm example assumes `down_obeservation/` and `data/` are sibling directories.
+The TH-HPC4 example assumes `down_obeservation/` and `data/` are sibling directories.
 
 ## Repository push
 

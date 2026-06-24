@@ -1,0 +1,44 @@
+#!/bin/sh
+# Submit from the repository root on the login node:
+#   yhbatch deploy/th-hpc4-gdex-download.sub.example
+#
+# TH-HPC4 manual notes:
+# - Submit jobs on login nodes with yhbatch.
+# - Launch programs in the job with yhrun.
+# - This downloader is network/IO-bound, so the debug CPU partition is a better
+#   default than GPU partitions when the site allows it.
+# - debug has a 30-minute time limit on the observed system; interrupted
+#   downloads resume from .part files on the next submission.
+
+#SBATCH -p debug
+#SBATCH -N 1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --time=00:30:00
+
+set -eu
+
+cd "${SLURM_SUBMIT_DIR:-$PWD}"
+
+DATA_DIR="$(cd .. && pwd)/data"
+mkdir -p "${DATA_DIR}/_logs" "${DATA_DIR}/_state"
+
+JOB_ID="${SLURM_JOB_ID:-manual}"
+exec > "${DATA_DIR}/_logs/gdex-download-${JOB_ID}.log" 2>&1
+
+echo "started_at=$(date -Is)"
+echo "workdir=$(pwd)"
+echo "data_dir=${DATA_DIR}"
+echo "job_id=${JOB_ID}"
+
+module add python/3.10 2>/dev/null || true
+module add python 2>/dev/null || true
+
+export PYTHON_BIN="${PYTHON_BIN:-python3}"
+export DATA_DIR
+export GDEX_YEAR="${GDEX_YEAR:-2026}"
+export GDEX_MAX_WORKERS="${GDEX_MAX_WORKERS:-2}"
+
+yhrun bash scripts/run_daily.sh
+
+echo "finished_at=$(date -Is)"
