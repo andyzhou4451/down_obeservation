@@ -1,0 +1,15 @@
+[Unit]
+Description=Download 2026 UCAR GDEX observation and PREPBUFR data
+Documentation=https://gdex.ucar.edu/datasets/d735000/dataaccess/
+Documentation=https://gdex.ucar.edu/datasets/d337000/dataaccess/
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=__APP_DIR__
+EnvironmentFile=-%h/.config/gdex-observation-download.env
+ExecStart=__APP_DIR__/scripts/run_daily.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

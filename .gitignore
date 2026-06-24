@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+
+# Download/runtime state. Keep data on the server, not in git.
+data/
+logs/
+state/
+*.part
+*.tmp
+
+# Local operator settings may contain paths or credentials.
+.env
+*.local

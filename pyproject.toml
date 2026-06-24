@@ -1,0 +1,15 @@
+[project]
+name = "down-obeservation"
+version = "0.1.0"
+description = "Daily resumable UCAR GDEX observation downloader"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "andyzhou4451" }]
+dependencies = []
+
+[project.scripts]
+gdex-downloader = "gdex_downloader.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

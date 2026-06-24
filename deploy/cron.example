@@ -1,0 +1,3 @@
+# Edit paths, then install with: crontab deploy/cron.example
+# Runs daily at 03:30 server local time and appends logs outside the repo.
+30 3 * * * cd /opt/down_obeservation && GDEX_DATA_ROOT=/data/gdex GDEX_STATE_DIR=/data/gdex_state GDEX_LOG_DIR=/data/gdex_logs /usr/bin/env bash scripts/run_daily.sh >> /data/gdex_logs/cron.log 2>&1

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run UCAR GDEX observation downloader daily
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=45m
+Persistent=true
+Unit=gdex-observation-download.service
+
+[Install]
+WantedBy=timers.target
