@@ -12,6 +12,7 @@ import logging
 import netrc
 import os
 import posixpath
+import re
 import ssl
 import sys
 import time
@@ -34,7 +35,10 @@ TEXT_CONTENT_TYPES = (
     "text/plain",
     "application/xml",
     "text/xml",
+    "application/octet-stream",
 )
+KEY_PATTERN = re.compile(r"<Key>([^<]+)</Key>", re.IGNORECASE)
+URL_PATTERN = re.compile(r"https?://[^\s\"'<>]+")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -360,7 +364,8 @@ def sanitize_component(value: str) -> str:
 
 
 def parse_links(base_url: str, body: bytes, content_type: str) -> list[str]:
-    if not any(kind in content_type.lower() for kind in TEXT_CONTENT_TYPES):
+    normalized_type = content_type.lower()
+    if content_type and not any(kind in normalized_type for kind in TEXT_CONTENT_TYPES):
         return []
     text = body.decode("utf-8", errors="replace")
     parser = HrefParser()
@@ -370,7 +375,32 @@ def parse_links(base_url: str, body: bytes, content_type: str) -> list[str]:
         joined = join_link(base_url, raw)
         if joined:
             links.append(joined)
-    return links
+    for key in KEY_PATTERN.findall(text):
+        joined = join_object_key(base_url, key)
+        if joined:
+            links.append(joined)
+    for raw_url in URL_PATTERN.findall(text):
+        joined = join_link(base_url, raw_url)
+        if joined:
+            links.append(joined)
+    return list(dict.fromkeys(links))
+
+
+def join_object_key(base_url: str, key: str) -> str | None:
+    stripped_key = key.lstrip("/")
+    parsed = urllib.parse.urlparse(base_url)
+    base_path = parsed.path.lstrip("/")
+    first_base_part = base_path.split("/", 1)[0] if base_path else ""
+    first_key_part = stripped_key.split("/", 1)[0] if stripped_key else ""
+    if first_base_part and first_base_part == first_key_part:
+        root = urllib.parse.urlunparse((parsed.scheme, parsed.netloc, "/", "", "", ""))
+        return join_link(root, stripped_key)
+    return join_link(base_url, stripped_key)
+
+
+def body_sample(body: bytes, max_chars: int = 500) -> str:
+    text = body.decode("utf-8", errors="replace")
+    return " ".join(text.split())[:max_chars]
 
 
 def discover_dataset(
@@ -423,21 +453,26 @@ def discover_dataset(
         links = parse_links(url, body, content_type)
         if log_index_links:
             sample = links[: max(0, index_link_sample)]
+            body_preview = body_sample(body)
             LOG.info(
-                "Index page links dataset=%s url=%s content_type=%s links=%d sample=%s",
+                "Index page links dataset=%s url=%s content_type=%s bytes=%d links=%d sample=%s body_sample=%r",
                 dataset.id,
                 url,
                 content_type or "unknown",
+                len(body),
                 len(links),
                 sample,
+                body_preview,
             )
             manifest.append(
                 "index_page",
                 dataset=dataset.id,
                 url=url,
                 content_type=content_type or "unknown",
+                bytes=len(body),
                 link_count=len(links),
                 link_sample=sample,
+                body_sample=body_preview,
             )
         else:
             LOG.debug("Discovered %d links from %s", len(links), url)

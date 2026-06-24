@@ -12,6 +12,7 @@ from gdex_downloader.cli import (
     local_path_for_url,
     matching_product,
     matches_year,
+    parse_links,
     parse_args,
     should_download,
     write_candidate_list,
@@ -76,6 +77,18 @@ class PathTests(unittest.TestCase):
 
         self.assertTrue(args.log_index_links)
         self.assertEqual(args.index_link_sample, 5)
+
+    def test_parse_links_reads_s3_keys(self) -> None:
+        body = b"<ListBucketResult><Key>d337000/2026/gdas.prepbufr.tar.gz</Key></ListBucketResult>"
+        links = parse_links("https://data.gdex.ucar.edu/d337000/", body, "application/xml")
+
+        self.assertIn("https://data.gdex.ucar.edu/d337000/2026/gdas.prepbufr.tar.gz", links)
+
+    def test_parse_links_reads_plain_urls_without_content_type(self) -> None:
+        body = b"https://data.gdex.ucar.edu/d735000/2026/atms/file.nc\n"
+        links = parse_links("https://data.gdex.ucar.edu/d735000/", body, "")
+
+        self.assertEqual(links, ["https://data.gdex.ucar.edu/d735000/2026/atms/file.nc"])
 
     def test_th_hpc4_config_avoids_data_rda_seed(self) -> None:
         _, allowed_hosts, datasets = load_config(Path("config/datasets.th-hpc4.json"))
