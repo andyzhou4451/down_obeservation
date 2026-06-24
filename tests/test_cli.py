@@ -8,12 +8,14 @@ from pathlib import Path
 from gdex_downloader.cli import (
     Candidate,
     DatasetConfig,
+    is_out_of_year_scope,
     load_config,
     local_path_for_url,
     matching_product,
     matches_year,
     parse_links,
     parse_args,
+    relevant_links,
     should_download,
     write_candidate_list,
 )
@@ -28,8 +30,8 @@ class FilterTests(unittest.TestCase):
             seeds=("https://data.rda.ucar.edu/ds735.0/",),
             scope_markers=("d735000", "ds735.0"),
             products={
-                "amsu-a": ("amsua", "amsu-a"),
-                "seviri": ("seviri", "msg"),
+                "amsu-a": ("amsua", "amsu-a", "1bamua"),
+                "seviri": ("seviri", "msg", "sevcsr", "airsev"),
             },
             file_extensions=(".nc", ".tar.gz"),
             max_depth=8,
@@ -39,9 +41,17 @@ class FilterTests(unittest.TestCase):
         self.assertTrue(matches_year("https://data.rda.ucar.edu/ds735.0/2026/amsua_file.nc", 2026))
         self.assertFalse(matches_year("https://data.rda.ucar.edu/ds735.0/2025/amsua_file.nc", 2026))
 
+    def test_out_of_year_scope_only_uses_standalone_years(self) -> None:
+        self.assertFalse(is_out_of_year_scope("https://x/ncar/gdex/d735000/atms/", 2026))
+        self.assertFalse(is_out_of_year_scope("https://x/ncar/gdex/d735000/atms/2026/", 2026))
+        self.assertFalse(is_out_of_year_scope("https://x/ncar/gdex/d735000/atms/2026/atms.20260623.tar.gz", 2026))
+        self.assertTrue(is_out_of_year_scope("https://x/ncar/gdex/d735000/atms/2025/", 2026))
+
     def test_matches_product_aliases(self) -> None:
         self.assertEqual(matching_product("https://x/ds735.0/2026/amsu-a/file.nc", self.dataset), "amsu-a")
+        self.assertEqual(matching_product("https://x/ncar/gdex/d735000/1bamua/2026/1bamua.20260623.tar.gz", self.dataset), "amsu-a")
         self.assertEqual(matching_product("https://x/ds735.0/2026/msg/file.nc", self.dataset), "seviri")
+        self.assertEqual(matching_product("https://x/ncar/gdex/d735000/sevcsr/2026/sevcsr.20260623.tar.gz", self.dataset), "seviri")
         self.assertIsNone(matching_product("https://x/ds735.0/2026/unknown/file.nc", self.dataset))
 
     def test_should_download_requires_year_product_and_extension(self) -> None:
@@ -90,13 +100,25 @@ class PathTests(unittest.TestCase):
 
         self.assertEqual(links, ["https://data.gdex.ucar.edu/d735000/2026/atms/file.nc"])
 
+    def test_relevant_links_keeps_dataset_and_file_links(self) -> None:
+        links = [
+            "https://gdex.ucar.edu/static/css/main.css",
+            "https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/atms/2026/atms.20260623.tar.gz",
+            "https://osdf-director.osg-htc.org/ncar/gdex/d337000/tarfiles/2026/prepbufr.20260623.nr.tar.gz",
+        ]
+
+        self.assertEqual(relevant_links(links), links[1:])
+
     def test_th_hpc4_config_avoids_data_rda_seed(self) -> None:
         _, allowed_hosts, datasets = load_config(Path("config/datasets.th-hpc4.json"))
 
         self.assertNotIn("data.rda.ucar.edu", allowed_hosts)
+        self.assertIn("osdfcache.ligo.caltech.edu", allowed_hosts)
+        self.assertIn("osdf-director.osg-htc.org", allowed_hosts)
         for dataset in datasets:
             self.assertTrue(dataset.seeds)
             self.assertTrue(all("data.rda.ucar.edu" not in seed for seed in dataset.seeds))
+            self.assertTrue(any("osdf" in seed or "osdfcache" in seed for seed in dataset.seeds))
 
     def test_local_path_preserves_dataset_product_host_and_remote_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

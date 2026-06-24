@@ -5,12 +5,12 @@ Daily, resumable downloader for 2026 UCAR GDEX observation data:
 - `d735000`: AMSU-A, ATMS, HIRS4, MHS, GPSRO/GNSSRO, SEVIRI
 - `d337000`: unrestricted GDAS PREPBUFR daily tar files
 
-The downloader discovers files from the GDEX data-access pages and known UCAR data-directory seeds, filters for the requested products and year, skips existing completed files, and resumes interrupted `.part` downloads when the server supports HTTP ranges.
+The downloader discovers files from the OSDF/XrdHTTP GDEX listings, filters for the requested products and year, skips existing completed files, and resumes interrupted `.part` downloads when the server supports HTTP ranges.
 
 ## Requirements
 
 - Python 3.10+
-- Network access from the server to `gdex.ucar.edu`, `data.rda.ucar.edu`, and/or `data.gdex.ucar.edu`
+- Network access from the server to `osdfcache.ligo.caltech.edu:8443` and `osdf-director.osg-htc.org`
 - Optional: `~/.netrc` or extra HTTP headers if your GDEX account/session requires authentication
 
 No third-party Python packages are required.
@@ -59,7 +59,7 @@ DATA_DIR=/scratch/$USER/data bash scripts/run_daily.sh
 
 ## Authentication options
 
-If UCAR requires login for your account, keep credentials outside git.
+The configured OSDF endpoints are public for the requested paths. If UCAR/GDEX later requires login for your account, keep credentials outside git.
 
 For Basic Auth-compatible endpoints, use `~/.netrc`:
 
@@ -135,7 +135,12 @@ crontab deploy/th-hpc4-login-crontab.example
 
 The login-node wrapper uses a lock so the midnight check will skip itself if an earlier download is still running.
 
-On the observed TH-HPC4 login node, direct DNS resolution fails but HTTPS through the site proxy can reach GDEX. The login-node wrapper therefore keeps proxy variables by default and uses `config/datasets.th-hpc4.json`, which avoids the proxy-blocked `data.rda.ucar.edu` seed. If an administrator later provides direct DNS/external access, you can bypass the proxy:
+On the observed TH-HPC4 login node, direct DNS resolution fails but HTTPS through the site proxy can reach external data services. The login-node wrapper therefore keeps proxy variables by default and uses `config/datasets.th-hpc4.json`, which points at the real OSDF download listings:
+
+- `https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/`
+- `https://osdf-director.osg-htc.org/ncar/gdex/d337000/tarfiles/2026/`
+
+If an administrator later provides direct DNS/external access, you can bypass the proxy:
 
 ```bash
 GDEX_BYPASS_PROXY=1 bash deploy/th-hpc4-login-download.sh
@@ -153,13 +158,17 @@ Run the network diagnostic and send the output to the HPC administrator when pro
 bash deploy/th-hpc4-network-check.sh | tee ../data/_logs/network-check.log
 ```
 
-If both proxy and direct modes fail, the required site-side fix is one of: an approved proxy that permits UCAR/GDEX HTTPS, DNS/external access on the login/data-transfer node, or a dedicated data-transfer node. The downloader cannot bypass a site firewall or proxy policy by itself.
+If both proxy and direct modes fail, the required site-side fix is one of: an approved proxy that permits OSDF/GDEX HTTPS, DNS/external access on the login/data-transfer node, or a dedicated data-transfer node. The downloader cannot bypass a site firewall or proxy policy by itself.
 
 The TH-HPC4 wrapper logs index-page link samples by default. If discovery reports zero candidates, inspect the latest log for `Index page links` lines:
 
 ```bash
 grep 'Index page links' "$(ls -t ../data/_logs/login-download-*.log | head -1)"
 ```
+
+The log includes a `relevant=[...]` field. With the OSDF configuration, it should show product directories or `.tar.gz` files such as `1bamua.20260623.tar.gz`, `atms.20260623.tar.gz`, `gpsro.20260623.tar.gz`, or `prepbufr.20260623.nr.tar.gz`. If it does not, run `deploy/th-hpc4-network-check.sh` and inspect whether the proxy can reach the OSDF hosts.
+
+As of 2026-06-24, the OSDF `1bhrs4/` and SEVIRI-related `sevcsr/`/`airsev/` listings do not expose 2026 subdirectories. They remain configured as product-root seeds so future 2026 files will be picked up automatically when they appear.
 
 The legacy `yhbatch` debug template remains in `deploy/th-hpc4-gdex-download.sub.example`, but it should only be used if the selected compute partition has external network access.
 

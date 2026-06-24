@@ -1,17 +1,22 @@
 {
   "year": 2026,
   "allowed_hosts": [
-    "gdex.ucar.edu",
-    "data.gdex.ucar.edu"
+    "osdfcache.ligo.caltech.edu",
+    "osdf-director.osg-htc.org"
   ],
   "datasets": [
     {
       "id": "d735000",
-      "label": "UCAR GDEX d735000 satellite and GPSRO observations (TH-HPC4 proxy-safe seeds)",
-      "dataaccess_url": "https://gdex.ucar.edu/datasets/d735000/dataaccess/",
+      "label": "UCAR GDEX d735000 satellite and GPSRO observations (OSDF XrdHTTP seeds)",
+      "dataaccess_url": "https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/",
       "seeds": [
-        "https://data.gdex.ucar.edu/d735000/",
-        "https://gdex.ucar.edu/datasets/d735000/dataaccess/"
+        "https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/1bamua/2026/",
+        "https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/atms/2026/",
+        "https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/1bhrs4/",
+        "https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/1bmhs/2026/",
+        "https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/gpsro/2026/",
+        "https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/sevcsr/",
+        "https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/airsev/"
       ],
       "scope_markers": [
         "d735000"
@@ -21,7 +26,8 @@
         "amsu-a": [
           "amsu-a",
           "amsua",
-          "amsu_a"
+          "amsu_a",
+          "1bamua"
         ],
         "atms": [
           "atms"
@@ -29,10 +35,12 @@
         "hirs4": [
           "hirs4",
           "hirs-4",
-          "hirs_4"
+          "hirs_4",
+          "1bhrs4"
         ],
         "mhs": [
-          "mhs"
+          "mhs",
+          "1bmhs"
         ],
         "gpsro": [
           "gpsro",
@@ -45,6 +53,8 @@
         ],
         "seviri": [
           "seviri",
+          "sevcsr",
+          "airsev",
           "msg",
           "meteosat"
         ]
@@ -65,11 +75,10 @@
     },
     {
       "id": "d337000",
-      "label": "UCAR GDEX d337000 unrestricted GDAS PREPBUFR daily tar files (TH-HPC4 proxy-safe seeds)",
-      "dataaccess_url": "https://gdex.ucar.edu/datasets/d337000/dataaccess/",
+      "label": "UCAR GDEX d337000 unrestricted GDAS PREPBUFR daily tar files (OSDF XrdHTTP seeds)",
+      "dataaccess_url": "https://osdf-director.osg-htc.org/ncar/gdex/d337000/tarfiles/2026/",
       "seeds": [
-        "https://data.gdex.ucar.edu/d337000/",
-        "https://gdex.ucar.edu/datasets/d337000/dataaccess/"
+        "https://osdf-director.osg-htc.org/ncar/gdex/d337000/tarfiles/2026/"
       ],
       "scope_markers": [
         "d337000"

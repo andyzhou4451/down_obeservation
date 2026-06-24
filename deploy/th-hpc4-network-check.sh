@@ -4,8 +4,8 @@
 
 set -u
 
-HOSTS="gdex.ucar.edu data.rda.ucar.edu data.gdex.ucar.edu"
-URLS="https://gdex.ucar.edu/datasets/d735000/dataaccess/ https://data.rda.ucar.edu/ds337.0/ https://data.gdex.ucar.edu/d337000/"
+HOSTS="osdfcache.ligo.caltech.edu osdf-director.osg-htc.org gdex.ucar.edu"
+URLS="https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/ https://osdf-director.osg-htc.org/ncar/gdex/d337000/tarfiles/2026/ https://gdex.ucar.edu/datasets/d735000/dataaccess/"
 
 echo "started_at=$(date -Is)"
 echo "host=$(hostname)"

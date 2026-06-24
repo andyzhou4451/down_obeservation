@@ -40,8 +40,8 @@ run_download() {
     else
       echo "proxy_env_detected=0"
     fi
-    export no_proxy="gdex.ucar.edu,data.rda.ucar.edu,data.gdex.ucar.edu,.ucar.edu${no_proxy:+,${no_proxy}}"
-    export NO_PROXY="gdex.ucar.edu,data.rda.ucar.edu,data.gdex.ucar.edu,.ucar.edu${NO_PROXY:+,${NO_PROXY}}"
+    export no_proxy="osdfcache.ligo.caltech.edu,osdf-director.osg-htc.org,gdex.ucar.edu,data.rda.ucar.edu,data.gdex.ucar.edu,.ucar.edu${no_proxy:+,${no_proxy}}"
+    export NO_PROXY="osdfcache.ligo.caltech.edu,osdf-director.osg-htc.org,gdex.ucar.edu,data.rda.ucar.edu,data.gdex.ucar.edu,.ucar.edu${NO_PROXY:+,${NO_PROXY}}"
     unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY
     echo "proxy_bypass=1"
   else
@@ -55,7 +55,7 @@ run_download() {
   export GDEX_MAX_WORKERS="${GDEX_MAX_WORKERS:-2}"
   export GDEX_INSECURE_TLS="${GDEX_INSECURE_TLS:-1}"
   export GDEX_LOG_INDEX_LINKS="${GDEX_LOG_INDEX_LINKS:-1}"
-  export GDEX_INDEX_LINK_SAMPLE="${GDEX_INDEX_LINK_SAMPLE:-50}"
+  export GDEX_INDEX_LINK_SAMPLE="${GDEX_INDEX_LINK_SAMPLE:-200}"
   echo "config=${GDEX_CONFIG}"
   echo "insecure_tls=${GDEX_INSECURE_TLS}"
   echo "log_index_links=${GDEX_LOG_INDEX_LINKS}"

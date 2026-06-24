@@ -39,6 +39,17 @@ TEXT_CONTENT_TYPES = (
 )
 KEY_PATTERN = re.compile(r"<Key>([^<]+)</Key>", re.IGNORECASE)
 URL_PATTERN = re.compile(r"https?://[^\s\"'<>]+")
+STANDALONE_YEAR_PATTERN = re.compile(r"(?<!\d)(?:19|20)\d{2}(?!\d)")
+RELEVANT_LINK_KEYWORDS = (
+    "api",
+    "dataaccess",
+    "download",
+    "file",
+    "d337000",
+    "d735000",
+    "ds337",
+    "ds735",
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -282,6 +293,11 @@ def matches_year(url: str, year: int) -> bool:
     return str(year) in path_text(url)
 
 
+def is_out_of_year_scope(url: str, year: int) -> bool:
+    years = set(STANDALONE_YEAR_PATTERN.findall(path_text(url)))
+    return bool(years) and str(year) not in years
+
+
 def matching_product(url: str, dataset: DatasetConfig) -> str | None:
     text = path_text(url)
     if not dataset.products:
@@ -403,6 +419,15 @@ def body_sample(body: bytes, max_chars: int = 500) -> str:
     return " ".join(text.split())[:max_chars]
 
 
+def relevant_links(links: Iterable[str]) -> list[str]:
+    result = []
+    for link in links:
+        lowered = link.lower()
+        if any(keyword in lowered for keyword in RELEVANT_LINK_KEYWORDS):
+            result.append(link)
+    return result
+
+
 def discover_dataset(
     *,
     dataset: DatasetConfig,
@@ -454,14 +479,16 @@ def discover_dataset(
         if log_index_links:
             sample = links[: max(0, index_link_sample)]
             body_preview = body_sample(body)
+            relevant = relevant_links(links)[: max(0, index_link_sample)]
             LOG.info(
-                "Index page links dataset=%s url=%s content_type=%s bytes=%d links=%d sample=%s body_sample=%r",
+                "Index page links dataset=%s url=%s content_type=%s bytes=%d links=%d sample=%s relevant=%s body_sample=%r",
                 dataset.id,
                 url,
                 content_type or "unknown",
                 len(body),
                 len(links),
                 sample,
+                relevant,
                 body_preview,
             )
             manifest.append(
@@ -472,12 +499,13 @@ def discover_dataset(
                 bytes=len(body),
                 link_count=len(links),
                 link_sample=sample,
+                relevant_links=relevant,
                 body_sample=body_preview,
             )
         else:
             LOG.debug("Discovered %d links from %s", len(links), url)
         for link in links:
-            if link not in visited and in_dataset_scope(link, dataset, allowed_hosts):
+            if link not in visited and in_dataset_scope(link, dataset, allowed_hosts) and not is_out_of_year_scope(link, year):
                 queue.append((link, depth + 1))
 
     if queue:
