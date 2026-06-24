@@ -15,6 +15,22 @@ The downloader discovers files from the GDEX data-access pages and known UCAR da
 
 No third-party Python packages are required.
 
+## Directory layout
+
+Put the repository and download directory side by side:
+
+```text
+parent/
+  down_obeservation/
+  data/
+    d735000/
+    d337000/
+    _state/
+    _logs/
+```
+
+`scripts/run_daily.sh` uses this layout by default. Data files go to `../data`, runtime state goes to `../data/_state`, and logs go to `../data/_logs`.
+
 If `python` is not on the server PATH, set `PYTHON_BIN` when using the daily wrapper:
 
 ```bash
@@ -24,26 +40,22 @@ PYTHON_BIN=/usr/bin/python3 scripts/run_daily.sh --dry-run --limit 5
 ## One-time dry run
 
 ```bash
-python -m gdex_downloader \
-  --config config/datasets.json \
-  --year 2026 \
-  --data-root /data/gdex \
-  --dry-run
+bash scripts/run_daily.sh --dry-run --limit 20
 ```
 
 ## Download / resume
 
 ```bash
-python -m gdex_downloader \
-  --config config/datasets.json \
-  --year 2026 \
-  --data-root /data/gdex \
-  --state-dir /data/gdex_state \
-  --log-dir /data/gdex_logs \
-  --max-workers 2
+bash scripts/run_daily.sh
 ```
 
 Completed files are trusted and skipped by default. Interrupted downloads are kept as `.part` files and resumed on the next run when possible.
+
+To override the sibling `data` directory:
+
+```bash
+DATA_DIR=/scratch/$USER/data bash scripts/run_daily.sh
+```
 
 ## Authentication options
 
@@ -70,7 +82,7 @@ python -m gdex_downloader ... \
 
 ## Daily automation with systemd user timer
 
-Edit a local environment file:
+The systemd timer also uses the sibling `data` directory by default. Create an environment file only if you need to override paths:
 
 ```bash
 mkdir -p ~/.config
@@ -102,6 +114,17 @@ loginctl enable-linger "$USER"
 
 Use `deploy/cron.example` if systemd timers are unavailable.
 
+## Slurm / HPC alternative
+
+For a supercomputer, submit the example batch job from the repository root:
+
+```bash
+mkdir -p ../data/_logs
+sbatch deploy/slurm.sbatch.example
+```
+
+The Slurm example assumes `down_obeservation/` and `data/` are sibling directories.
+
 ## Repository push
 
 After checking the files:
@@ -118,4 +141,5 @@ git push -u origin main
 python -m compileall gdex_downloader
 python -m unittest discover -s tests
 python -m gdex_downloader --config config/datasets.json --year 2026 --dry-run --limit 5
+bash scripts/run_daily.sh --dry-run --max-pages 0
 ```
