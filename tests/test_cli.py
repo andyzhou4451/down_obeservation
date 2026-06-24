@@ -8,6 +8,7 @@ from pathlib import Path
 from gdex_downloader.cli import (
     Candidate,
     DatasetConfig,
+    load_config,
     local_path_for_url,
     matching_product,
     matches_year,
@@ -67,6 +68,14 @@ class PathTests(unittest.TestCase):
         args = parse_args(["--insecure-tls"])
 
         self.assertTrue(args.insecure_tls)
+
+    def test_th_hpc4_config_avoids_data_rda_seed(self) -> None:
+        _, allowed_hosts, datasets = load_config(Path("config/datasets.th-hpc4.json"))
+
+        self.assertNotIn("data.rda.ucar.edu", allowed_hosts)
+        for dataset in datasets:
+            self.assertTrue(dataset.seeds)
+            self.assertTrue(all("data.rda.ucar.edu" not in seed for seed in dataset.seeds))
 
     def test_local_path_preserves_dataset_product_host_and_remote_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

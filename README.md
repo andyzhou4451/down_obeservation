@@ -135,16 +135,16 @@ crontab deploy/th-hpc4-login-crontab.example
 
 The login-node wrapper uses a lock so the midnight check will skip itself if an earlier download is still running.
 
-On the observed TH-HPC4 login node, direct DNS resolution fails but HTTPS through the site proxy can reach GDEX. The login-node wrapper therefore keeps proxy variables by default. If an administrator later provides direct DNS/external access, you can bypass the proxy:
+On the observed TH-HPC4 login node, direct DNS resolution fails but HTTPS through the site proxy can reach GDEX. The login-node wrapper therefore keeps proxy variables by default and uses `config/datasets.th-hpc4.json`, which avoids the proxy-blocked `data.rda.ucar.edu` seed. If an administrator later provides direct DNS/external access, you can bypass the proxy:
 
 ```bash
 GDEX_BYPASS_PROXY=1 bash deploy/th-hpc4-login-download.sh
 ```
 
-If logs show `CERTIFICATE_VERIFY_FAILED` because the site proxy presents an expired or untrusted certificate, run with explicit insecure TLS mode:
+The TH-HPC4 wrapper defaults `GDEX_INSECURE_TLS=1` because the observed site proxy can present an expired certificate. To force normal certificate verification after the site proxy is fixed:
 
 ```bash
-GDEX_INSECURE_TLS=1 bash deploy/th-hpc4-login-download.sh
+GDEX_INSECURE_TLS=0 bash deploy/th-hpc4-login-download.sh
 ```
 
 Run the network diagnostic and send the output to the HPC administrator when proxy or DNS behavior changes:

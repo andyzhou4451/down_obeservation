@@ -49,10 +49,12 @@ run_download() {
   fi
 
   export PYTHON_BIN="${PYTHON_BIN:-python3}"
+  export GDEX_CONFIG="${GDEX_CONFIG:-${APP_DIR}/config/datasets.th-hpc4.json}"
   export DATA_DIR
   export GDEX_YEAR="${GDEX_YEAR:-2026}"
   export GDEX_MAX_WORKERS="${GDEX_MAX_WORKERS:-2}"
-  export GDEX_INSECURE_TLS="${GDEX_INSECURE_TLS:-0}"
+  export GDEX_INSECURE_TLS="${GDEX_INSECURE_TLS:-1}"
+  echo "config=${GDEX_CONFIG}"
   echo "insecure_tls=${GDEX_INSECURE_TLS}"
 
   bash scripts/run_daily.sh
