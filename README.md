@@ -10,7 +10,7 @@ The downloader discovers files from the OSDF/XrdHTTP GDEX listings, filters for 
 ## Requirements
 
 - Python 3.10+
-- Network access from the server to `osdfcache.ligo.caltech.edu:8443` and `osdf-director.osg-htc.org`
+- Network access from the server to `osdf-director.osg-htc.org` and the OSDF cache host it redirects to for each file
 - Optional: `~/.netrc` or extra HTTP headers if your GDEX account/session requires authentication
 
 No third-party Python packages are required.
@@ -135,10 +135,14 @@ crontab deploy/th-hpc4-login-crontab.example
 
 The login-node wrapper uses a lock so the midnight check will skip itself if an earlier download is still running.
 
-On the observed TH-HPC4 login node, direct DNS resolution fails but HTTPS through the site proxy can reach external data services. The login-node wrapper therefore keeps proxy variables by default and uses `config/datasets.th-hpc4.json`, which points at the real OSDF download listings:
+On the observed TH-HPC4 login node, direct DNS resolution fails but HTTPS through the site proxy can reach external data services. The login-node wrapper therefore keeps proxy variables by default and uses `config/datasets.th-hpc4.json`, which points at the official OSDF director download listings:
 
-- `https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/`
+- `https://osdf-director.osg-htc.org/ncar/gdex/d735000/`
 - `https://osdf-director.osg-htc.org/ncar/gdex/d337000/tarfiles/2026/`
+
+The director may redirect individual files to a cache host on port `8443`. Do not hard-code a cache host in the TH-HPC4 config; use the director URL, matching the official UCAR/GDEX `wget -N --no-check-certificate` example.
+
+The TH-HPC4 wrapper defaults to one download worker to match UCAR/GDEX guidance against simultaneous file downloads.
 
 If an administrator later provides direct DNS/external access, you can bypass the proxy:
 
@@ -167,6 +171,14 @@ grep 'Index page links' "$(ls -t ../data/_logs/login-download-*.log | head -1)"
 ```
 
 The log includes a `relevant=[...]` field. With the OSDF configuration, it should show product directories or `.tar.gz` files such as `1bamua.20260623.tar.gz`, `atms.20260623.tar.gz`, `gpsro.20260623.tar.gz`, or `prepbufr.20260623.nr.tar.gz`. If it does not, run `deploy/th-hpc4-network-check.sh` and inspect whether the proxy can reach the OSDF hosts.
+
+To test the official `wget` path manually on the login node:
+
+```bash
+mkdir -p ../data/_manual_wget_test
+cd ../data/_manual_wget_test
+wget --no-check-certificate -N https://osdf-director.osg-htc.org/ncar/gdex/d735000/1bmhs/2026/1bmhs.20260101.tar.gz
+```
 
 As of 2026-06-24, the OSDF `1bhrs4/` and SEVIRI-related `sevcsr/`/`airsev/` listings do not expose 2026 subdirectories. They remain configured as product-root seeds so future 2026 files will be picked up automatically when they appear.
 

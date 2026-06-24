@@ -1,6 +1,6 @@
 [Unit]
 Description=Download 2026 UCAR GDEX observation and PREPBUFR data
-Documentation=https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/
+Documentation=https://osdf-director.osg-htc.org/ncar/gdex/d735000/
 Documentation=https://osdf-director.osg-htc.org/ncar/gdex/d337000/tarfiles/2026/
 Wants=network-online.target
 After=network-online.target

@@ -22,6 +22,6 @@ mkdir -p ../data/_logs
 module load python/3.10 2>/dev/null || true
 
 export GDEX_YEAR=2026
-export GDEX_MAX_WORKERS=2
+export GDEX_MAX_WORKERS=1
 
 bash scripts/run_daily.sh

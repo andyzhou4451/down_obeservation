@@ -40,8 +40,8 @@ run_download() {
     else
       echo "proxy_env_detected=0"
     fi
-    export no_proxy="osdfcache.ligo.caltech.edu,osdf-director.osg-htc.org,gdex.ucar.edu,data.rda.ucar.edu,data.gdex.ucar.edu,.ucar.edu${no_proxy:+,${no_proxy}}"
-    export NO_PROXY="osdfcache.ligo.caltech.edu,osdf-director.osg-htc.org,gdex.ucar.edu,data.rda.ucar.edu,data.gdex.ucar.edu,.ucar.edu${NO_PROXY:+,${NO_PROXY}}"
+    export no_proxy="osdf-director.osg-htc.org,gdex.ucar.edu,data.rda.ucar.edu,data.gdex.ucar.edu,.ucar.edu${no_proxy:+,${no_proxy}}"
+    export NO_PROXY="osdf-director.osg-htc.org,gdex.ucar.edu,data.rda.ucar.edu,data.gdex.ucar.edu,.ucar.edu${NO_PROXY:+,${NO_PROXY}}"
     unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY
     echo "proxy_bypass=1"
   else
@@ -52,7 +52,7 @@ run_download() {
   export GDEX_CONFIG="${GDEX_CONFIG:-${APP_DIR}/config/datasets.th-hpc4.json}"
   export DATA_DIR
   export GDEX_YEAR="${GDEX_YEAR:-2026}"
-  export GDEX_MAX_WORKERS="${GDEX_MAX_WORKERS:-2}"
+  export GDEX_MAX_WORKERS="${GDEX_MAX_WORKERS:-1}"
   export GDEX_INSECURE_TLS="${GDEX_INSECURE_TLS:-1}"
   export GDEX_LOG_INDEX_LINKS="${GDEX_LOG_INDEX_LINKS:-1}"
   export GDEX_INDEX_LINK_SAMPLE="${GDEX_INDEX_LINK_SAMPLE:-200}"

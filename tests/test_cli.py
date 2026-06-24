@@ -103,7 +103,7 @@ class PathTests(unittest.TestCase):
     def test_relevant_links_keeps_dataset_and_file_links(self) -> None:
         links = [
             "https://gdex.ucar.edu/static/css/main.css",
-            "https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/atms/2026/atms.20260623.tar.gz",
+            "https://osdf-director.osg-htc.org/ncar/gdex/d735000/atms/2026/atms.20260623.tar.gz",
             "https://osdf-director.osg-htc.org/ncar/gdex/d337000/tarfiles/2026/prepbufr.20260623.nr.tar.gz",
         ]
 
@@ -113,12 +113,11 @@ class PathTests(unittest.TestCase):
         _, allowed_hosts, datasets = load_config(Path("config/datasets.th-hpc4.json"))
 
         self.assertNotIn("data.rda.ucar.edu", allowed_hosts)
-        self.assertIn("osdfcache.ligo.caltech.edu", allowed_hosts)
         self.assertIn("osdf-director.osg-htc.org", allowed_hosts)
         for dataset in datasets:
             self.assertTrue(dataset.seeds)
             self.assertTrue(all("data.rda.ucar.edu" not in seed for seed in dataset.seeds))
-            self.assertTrue(any("osdf" in seed or "osdfcache" in seed for seed in dataset.seeds))
+            self.assertTrue(all("osdf-director.osg-htc.org" in seed for seed in dataset.seeds))
 
     def test_local_path_preserves_dataset_product_host_and_remote_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

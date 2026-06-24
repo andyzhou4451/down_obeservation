@@ -54,7 +54,7 @@ module add python 2>/dev/null || true
 export PYTHON_BIN="${PYTHON_BIN:-python3}"
 export DATA_DIR
 export GDEX_YEAR="${GDEX_YEAR:-2026}"
-export GDEX_MAX_WORKERS="${GDEX_MAX_WORKERS:-2}"
+export GDEX_MAX_WORKERS="${GDEX_MAX_WORKERS:-1}"
 
 set +e
 if command -v timeout >/dev/null 2>&1; then

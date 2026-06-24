@@ -1,22 +1,21 @@
 {
   "year": 2026,
   "allowed_hosts": [
-    "osdfcache.ligo.caltech.edu",
     "osdf-director.osg-htc.org"
   ],
   "datasets": [
     {
       "id": "d735000",
       "label": "UCAR GDEX d735000 satellite and GPSRO observations (OSDF XrdHTTP seeds)",
-      "dataaccess_url": "https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/",
+      "dataaccess_url": "https://osdf-director.osg-htc.org/ncar/gdex/d735000/",
       "seeds": [
-        "https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/1bamua/2026/",
-        "https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/atms/2026/",
-        "https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/1bhrs4/",
-        "https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/1bmhs/2026/",
-        "https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/gpsro/2026/",
-        "https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/sevcsr/",
-        "https://osdfcache.ligo.caltech.edu:8443/ncar/gdex/d735000/airsev/"
+        "https://osdf-director.osg-htc.org/ncar/gdex/d735000/1bamua/2026/",
+        "https://osdf-director.osg-htc.org/ncar/gdex/d735000/atms/2026/",
+        "https://osdf-director.osg-htc.org/ncar/gdex/d735000/1bhrs4/",
+        "https://osdf-director.osg-htc.org/ncar/gdex/d735000/1bmhs/2026/",
+        "https://osdf-director.osg-htc.org/ncar/gdex/d735000/gpsro/2026/",
+        "https://osdf-director.osg-htc.org/ncar/gdex/d735000/sevcsr/",
+        "https://osdf-director.osg-htc.org/ncar/gdex/d735000/airsev/"
       ],
       "scope_markers": [
         "d735000"
