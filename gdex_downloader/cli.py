@@ -20,7 +20,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections import deque
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable
 
@@ -53,11 +53,18 @@ RELEVANT_LINK_KEYWORDS = (
 
 
 @dataclasses.dataclass(frozen=True)
+class DateTemplateConfig:
+    product: str
+    url: str
+
+
+@dataclasses.dataclass(frozen=True)
 class DatasetConfig:
     id: str
     label: str
     dataaccess_url: str
     seeds: tuple[str, ...]
+    date_templates: tuple[DateTemplateConfig, ...]
     scope_markers: tuple[str, ...]
     products: dict[str, tuple[str, ...]]
     file_extensions: tuple[str, ...]
@@ -181,6 +188,8 @@ class URLClient:
                 return urllib.request.urlopen(request, timeout=self.timeout, context=self.ssl_context)
             except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
                 last_error = exc
+                if isinstance(exc, urllib.error.HTTPError) and exc.code in {404, 410}:
+                    break
                 if attempt >= self.retries:
                     break
                 sleep_for = self.retry_sleep * (attempt + 1)
@@ -247,6 +256,13 @@ def load_config(path: Path) -> tuple[int, set[str], list[DatasetConfig]]:
                 label=str(item.get("label", item["id"])),
                 dataaccess_url=str(item.get("dataaccess_url", "")),
                 seeds=tuple(str(seed) for seed in item.get("seeds", [])),
+                date_templates=tuple(
+                    DateTemplateConfig(
+                        product=str(template["product"]),
+                        url=str(template["url"]),
+                    )
+                    for template in item.get("date_templates", [])
+                ),
                 scope_markers=tuple(str(marker).lower() for marker in item.get("scope_markers", [])),
                 products=products,
                 file_extensions=tuple(str(ext).lower() for ext in item.get("file_extensions", [])),
@@ -353,6 +369,63 @@ def should_download(url: str, dataset: DatasetConfig, year: int) -> tuple[bool, 
     return True, product
 
 
+def iter_year_dates(year: int, today: date | None = None) -> Iterable[date]:
+    current_day = today or date.today()
+    start = date(year, 1, 1)
+    end = date(year, 12, 31)
+    if year == current_day.year:
+        end = min(end, current_day)
+    elif year > current_day.year:
+        return
+
+    day = start
+    while day <= end:
+        yield day
+        day += timedelta(days=1)
+
+
+def render_date_template(template: str, day: date) -> str:
+    values = {
+        "year": f"{day.year:04d}",
+        "yyyy": f"{day.year:04d}",
+        "yyyymmdd": day.strftime("%Y%m%d"),
+        "yymmdd": day.strftime("%y%m%d"),
+        "mm": day.strftime("%m"),
+        "dd": day.strftime("%d"),
+        "doy": day.strftime("%j"),
+    }
+    try:
+        return template.format(**values)
+    except KeyError as exc:
+        missing = exc.args[0]
+        raise SystemExit(f"Unknown date template field {{{missing}}}: {template}") from exc
+
+
+def generated_date_candidates(
+    *,
+    dataset: DatasetConfig,
+    year: int,
+    allowed_hosts: set[str],
+    data_root: Path,
+    today: date | None = None,
+) -> list[Candidate]:
+    candidates = []
+    for template in dataset.date_templates:
+        for day in iter_year_dates(year, today=today):
+            url = normalize_url(render_date_template(template.url, day))
+            if not in_dataset_scope(url, dataset, allowed_hosts):
+                continue
+            if is_out_of_year_scope(url, year):
+                continue
+            if not matches_year(url, year):
+                continue
+            if not has_allowed_extension(url, dataset):
+                continue
+            local_path = local_path_for_url(data_root, dataset.id, template.product, url)
+            candidates.append(Candidate(dataset.id, template.product, url, local_path))
+    return candidates
+
+
 def local_path_for_url(data_root: Path, dataset_id: str, product: str, url: str) -> Path:
     parsed = urllib.parse.urlparse(url)
     host = sanitize_component(parsed.hostname or "unknown-host")
@@ -447,6 +520,23 @@ def discover_dataset(
     candidates: dict[str, Candidate] = {}
 
     LOG.info("Discovering %s for %s", dataset.id, year)
+    generated = generated_date_candidates(
+        dataset=dataset,
+        year=year,
+        allowed_hosts=allowed_hosts,
+        data_root=data_root,
+    )
+    for candidate in generated:
+        candidates[candidate.url] = candidate
+        manifest.append(
+            "generated_file",
+            dataset=dataset.id,
+            product=candidate.product,
+            url=candidate.url,
+        )
+    if generated:
+        LOG.info("Generated %d date-template candidate files for %s", len(generated), dataset.id)
+
     while queue and len(visited) < max_pages:
         url, depth = queue.popleft()
         if url in visited:
@@ -578,6 +668,26 @@ def download_candidate(
             if "text/html" in response.headers.get("Content-Type", "").lower():
                 return DownloadResult(candidate, "failed", detail="URL returned HTML, not a data file")
             bytes_written = copy_response(response, part, mode, chunk_size)
+    except urllib.error.HTTPError as exc:
+        if exc.code in {404, 410}:
+            manifest.append(
+                "missing_remote",
+                dataset=candidate.dataset_id,
+                product=candidate.product,
+                url=candidate.url,
+                path=str(dest),
+                status=exc.code,
+            )
+            return DownloadResult(candidate, "missing_remote", detail=f"HTTP {exc.code}")
+        manifest.append(
+            "download_error",
+            dataset=candidate.dataset_id,
+            product=candidate.product,
+            url=candidate.url,
+            path=str(dest),
+            error=str(exc),
+        )
+        return DownloadResult(candidate, "failed", detail=str(exc))
     except Exception as exc:  # noqa: BLE001 - failure is recorded and other files continue.
         manifest.append(
             "download_error",
@@ -732,6 +842,7 @@ def main(argv: list[str] | None = None) -> int:
         failures = 0
         downloaded = 0
         skipped = 0
+        missing = 0
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.max_workers)) as pool:
             futures = [
                 pool.submit(
@@ -754,11 +865,14 @@ def main(argv: list[str] | None = None) -> int:
                 elif result.status == "skipped_exists":
                     skipped += 1
                     LOG.info("Skipped existing %s", result.candidate.local_path)
+                elif result.status == "missing_remote":
+                    missing += 1
+                    LOG.info("Remote missing %s: %s", result.candidate.url, result.detail)
                 else:
                     failures += 1
                     LOG.error("Failed %s: %s", result.candidate.url, result.detail)
 
-        LOG.info("Run complete: downloaded=%d skipped=%d failed=%d", downloaded, skipped, failures)
+        LOG.info("Run complete: downloaded=%d skipped=%d missing_remote=%d failed=%d", downloaded, skipped, missing, failures)
         return 1 if failures else 0
 
 

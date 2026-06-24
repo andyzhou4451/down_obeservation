@@ -3,12 +3,19 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+import urllib.error
+from datetime import date
 from pathlib import Path
 
 from gdex_downloader.cli import (
     Candidate,
     DatasetConfig,
+    DateTemplateConfig,
+    JsonlWriter,
+    download_candidate,
+    generated_date_candidates,
     is_out_of_year_scope,
+    iter_year_dates,
     load_config,
     local_path_for_url,
     matching_product,
@@ -28,6 +35,7 @@ class FilterTests(unittest.TestCase):
             label="test",
             dataaccess_url="https://gdex.ucar.edu/datasets/d735000/dataaccess/",
             seeds=("https://data.rda.ucar.edu/ds735.0/",),
+            date_templates=(),
             scope_markers=("d735000", "ds735.0"),
             products={
                 "amsu-a": ("amsua", "amsu-a", "1bamua"),
@@ -64,6 +72,46 @@ class FilterTests(unittest.TestCase):
         self.assertEqual(should_download(wrong_year, self.dataset, 2026), (False, None))
         self.assertEqual(should_download(wrong_product, self.dataset, 2026), (False, None))
         self.assertEqual(should_download(wrong_extension, self.dataset, 2026), (False, None))
+
+    def test_iter_year_dates_stops_at_today_for_current_year(self) -> None:
+        days = list(iter_year_dates(2026, today=date(2026, 1, 3)))
+
+        self.assertEqual(days, [date(2026, 1, 1), date(2026, 1, 2), date(2026, 1, 3)])
+
+    def test_generated_date_candidates_use_template_product(self) -> None:
+        dataset = DatasetConfig(
+            id="d735000",
+            label="test",
+            dataaccess_url="https://data.gdex.ucar.edu/d735000/",
+            seeds=(),
+            date_templates=(
+                DateTemplateConfig(
+                    product="mhs",
+                    url="https://data.gdex.ucar.edu/d735000/1bmhs/{year}/1bmhs.{yyyymmdd}.tar.gz",
+                ),
+            ),
+            scope_markers=("d735000",),
+            products={"mhs": ("mhs", "1bmhs")},
+            file_extensions=(".tar.gz",),
+            max_depth=0,
+        )
+
+        candidates = generated_date_candidates(
+            dataset=dataset,
+            year=2026,
+            allowed_hosts={"data.gdex.ucar.edu"},
+            data_root=Path("/data"),
+            today=date(2026, 1, 2),
+        )
+
+        self.assertEqual([candidate.product for candidate in candidates], ["mhs", "mhs"])
+        self.assertEqual(
+            [candidate.url for candidate in candidates],
+            [
+                "https://data.gdex.ucar.edu/d735000/1bmhs/2026/1bmhs.20260101.tar.gz",
+                "https://data.gdex.ucar.edu/d735000/1bmhs/2026/1bmhs.20260102.tar.gz",
+            ],
+        )
 
 
 class PathTests(unittest.TestCase):
@@ -109,15 +157,17 @@ class PathTests(unittest.TestCase):
 
         self.assertEqual(relevant_links(links), links[1:])
 
-    def test_th_hpc4_config_avoids_data_rda_seed(self) -> None:
+    def test_th_hpc4_config_uses_data_gdex_templates(self) -> None:
         _, allowed_hosts, datasets = load_config(Path("config/datasets.th-hpc4.json"))
 
         self.assertNotIn("data.rda.ucar.edu", allowed_hosts)
-        self.assertIn("osdf-director.osg-htc.org", allowed_hosts)
+        self.assertNotIn("osdf-director.osg-htc.org", allowed_hosts)
+        self.assertIn("data.gdex.ucar.edu", allowed_hosts)
         for dataset in datasets:
-            self.assertTrue(dataset.seeds)
+            self.assertFalse(dataset.seeds)
+            self.assertTrue(dataset.date_templates)
             self.assertTrue(all("data.rda.ucar.edu" not in seed for seed in dataset.seeds))
-            self.assertTrue(all("osdf-director.osg-htc.org" in seed for seed in dataset.seeds))
+            self.assertTrue(all("data.gdex.ucar.edu" in template.url for template in dataset.date_templates))
 
     def test_local_path_preserves_dataset_product_host_and_remote_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -147,6 +197,36 @@ class PathTests(unittest.TestCase):
         self.assertEqual(record["dataset"], "d735000")
         self.assertEqual(record["product"], "atms")
         self.assertEqual(record["url"], candidate.url)
+
+    def test_download_candidate_treats_404_as_missing_remote(self) -> None:
+        class MissingClient:
+            def request(self, url: str, **kwargs):  # type: ignore[no-untyped-def]
+                raise urllib.error.HTTPError(url, 404, "Not Found", None, None)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            candidate = Candidate(
+                dataset_id="d735000",
+                product="hirs4",
+                url="https://data.gdex.ucar.edu/d735000/1bhrs4/2026/1bhrs4.20260101.tar.gz",
+                local_path=root / "1bhrs4.20260101.tar.gz",
+            )
+            manifest = JsonlWriter(root / "manifest.jsonl")
+
+            result = download_candidate(
+                candidate,
+                client=MissingClient(),  # type: ignore[arg-type]
+                force=False,
+                recheck_existing=False,
+                chunk_size=1024,
+                delay=0,
+                manifest=manifest,
+            )
+
+            records = [json.loads(line) for line in (root / "manifest.jsonl").read_text(encoding="utf-8").splitlines()]
+
+        self.assertEqual(result.status, "missing_remote")
+        self.assertEqual(records[0]["event"], "missing_remote")
 
 
 if __name__ == "__main__":
