@@ -63,11 +63,19 @@ class PathTests(unittest.TestCase):
         self.assertEqual(args.state_dir, Path("../data/_state"))
         self.assertEqual(args.log_dir, Path("../data/_logs"))
         self.assertFalse(args.insecure_tls)
+        self.assertFalse(args.log_index_links)
+        self.assertEqual(args.index_link_sample, 20)
 
     def test_cli_accepts_insecure_tls_flag(self) -> None:
         args = parse_args(["--insecure-tls"])
 
         self.assertTrue(args.insecure_tls)
+
+    def test_cli_accepts_index_link_logging_flags(self) -> None:
+        args = parse_args(["--log-index-links", "--index-link-sample", "5"])
+
+        self.assertTrue(args.log_index_links)
+        self.assertEqual(args.index_link_sample, 5)
 
     def test_th_hpc4_config_avoids_data_rda_seed(self) -> None:
         _, allowed_hosts, datasets = load_config(Path("config/datasets.th-hpc4.json"))

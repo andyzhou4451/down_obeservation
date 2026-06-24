@@ -54,8 +54,11 @@ run_download() {
   export GDEX_YEAR="${GDEX_YEAR:-2026}"
   export GDEX_MAX_WORKERS="${GDEX_MAX_WORKERS:-2}"
   export GDEX_INSECURE_TLS="${GDEX_INSECURE_TLS:-1}"
+  export GDEX_LOG_INDEX_LINKS="${GDEX_LOG_INDEX_LINKS:-1}"
+  export GDEX_INDEX_LINK_SAMPLE="${GDEX_INDEX_LINK_SAMPLE:-50}"
   echo "config=${GDEX_CONFIG}"
   echo "insecure_tls=${GDEX_INSECURE_TLS}"
+  echo "log_index_links=${GDEX_LOG_INDEX_LINKS}"
 
   bash scripts/run_daily.sh
 

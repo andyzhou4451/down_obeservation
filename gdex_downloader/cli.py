@@ -382,6 +382,8 @@ def discover_dataset(
     client: URLClient,
     max_pages: int,
     max_depth: int | None,
+    log_index_links: bool,
+    index_link_sample: int,
     manifest: JsonlWriter,
 ) -> list[Candidate]:
     depth_limit = dataset.max_depth if max_depth is None else max_depth
@@ -419,7 +421,26 @@ def discover_dataset(
             continue
 
         links = parse_links(url, body, content_type)
-        LOG.debug("Discovered %d links from %s", len(links), url)
+        if log_index_links:
+            sample = links[: max(0, index_link_sample)]
+            LOG.info(
+                "Index page links dataset=%s url=%s content_type=%s links=%d sample=%s",
+                dataset.id,
+                url,
+                content_type or "unknown",
+                len(links),
+                sample,
+            )
+            manifest.append(
+                "index_page",
+                dataset=dataset.id,
+                url=url,
+                content_type=content_type or "unknown",
+                link_count=len(links),
+                link_sample=sample,
+            )
+        else:
+            LOG.debug("Discovered %d links from %s", len(links), url)
         for link in links:
             if link not in visited and in_dataset_scope(link, dataset, allowed_hosts):
                 queue.append((link, depth + 1))
@@ -573,6 +594,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--download-delay", type=float, default=0.25)
     parser.add_argument("--chunk-size", type=int, default=1024 * 1024)
     parser.add_argument("--lock-stale-hours", type=float, default=36.0)
+    parser.add_argument("--log-index-links", action="store_true", help="Log index-page link counts and samples during discovery.")
+    parser.add_argument("--index-link-sample", type=int, default=20, help="Number of discovered links to include when --log-index-links is set.")
     parser.add_argument("--header", action="append", default=[], help="Extra HTTP header, e.g. 'Authorization: Bearer ...'.")
     parser.add_argument("--no-netrc", action="store_true", help="Disable ~/.netrc Basic Auth lookup.")
     parser.add_argument("--insecure-tls", action="store_true", help="Disable HTTPS certificate verification. Use only for site proxy/CA issues.")
@@ -620,6 +643,8 @@ def main(argv: list[str] | None = None) -> int:
                     client=client,
                     max_pages=args.max_pages,
                     max_depth=args.max_depth,
+                    log_index_links=args.log_index_links,
+                    index_link_sample=args.index_link_sample,
                     manifest=manifest,
                 )
             )

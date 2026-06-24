@@ -155,6 +155,12 @@ bash deploy/th-hpc4-network-check.sh | tee ../data/_logs/network-check.log
 
 If both proxy and direct modes fail, the required site-side fix is one of: an approved proxy that permits UCAR/GDEX HTTPS, DNS/external access on the login/data-transfer node, or a dedicated data-transfer node. The downloader cannot bypass a site firewall or proxy policy by itself.
 
+The TH-HPC4 wrapper logs index-page link samples by default. If discovery reports zero candidates, inspect the latest log for `Index page links` lines:
+
+```bash
+grep 'Index page links' "$(ls -t ../data/_logs/login-download-*.log | head -1)"
+```
+
 The legacy `yhbatch` debug template remains in `deploy/th-hpc4-gdex-download.sub.example`, but it should only be used if the selected compute partition has external network access.
 
 ## Repository push
