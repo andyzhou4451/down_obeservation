@@ -141,6 +141,14 @@ If logs show `Tunnel connection failed: 403 Forbidden`, the login environment is
 GDEX_BYPASS_PROXY=0 bash deploy/th-hpc4-login-download.sh
 ```
 
+If logs then show `Name or service not known`, direct DNS/external access is also unavailable from the login node. Run the network diagnostic and send the output to the HPC administrator:
+
+```bash
+bash deploy/th-hpc4-network-check.sh | tee ../data/_logs/network-check.log
+```
+
+At that point the required site-side fix is one of: an approved proxy that permits UCAR/GDEX HTTPS, DNS/external access on the login/data-transfer node, or a dedicated data-transfer node. The downloader cannot bypass a site firewall or proxy policy by itself.
+
 The legacy `yhbatch` debug template remains in `deploy/th-hpc4-gdex-download.sub.example`, but it should only be used if the selected compute partition has external network access.
 
 ## Repository push
