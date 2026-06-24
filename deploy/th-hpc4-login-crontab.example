@@ -1,0 +1,13 @@
+# Install from the TH-HPC4 login node with:
+#   crontab deploy/th-hpc4-login-crontab.example
+#
+# Assumed layout:
+#   $HOME/down_obeservation/
+#   $HOME/data/
+#
+# For a one-time delayed run, use the nohup sleep command shown in README.md.
+
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+0 0 * * * cd "$HOME/down_obeservation" && bash deploy/th-hpc4-login-download.sh >> ../data/_logs/login-cron-submit.log 2>&1

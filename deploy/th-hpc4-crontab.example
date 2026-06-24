@@ -5,8 +5,8 @@
 #   $HOME/down_obeservation/
 #   $HOME/data/
 #
-# The midnight line avoids submitting a duplicate chain when a gdex_download_loop
-# job is already queued or running.
+# Legacy compute-node version. Prefer th-hpc4-login-crontab.example when compute
+# nodes cannot access the external network.
 
 SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
