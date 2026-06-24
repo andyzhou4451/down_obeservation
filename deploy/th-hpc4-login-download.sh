@@ -34,6 +34,20 @@ run_download() {
   module add python/3.10 2>/dev/null || true
   module add python 2>/dev/null || true
 
+  if [ "${GDEX_BYPASS_PROXY:-1}" = "1" ]; then
+    if env | grep -Eiq '^(https?_proxy|all_proxy)='; then
+      echo "proxy_env_detected=1"
+    else
+      echo "proxy_env_detected=0"
+    fi
+    export no_proxy="gdex.ucar.edu,data.rda.ucar.edu,data.gdex.ucar.edu,.ucar.edu${no_proxy:+,${no_proxy}}"
+    export NO_PROXY="gdex.ucar.edu,data.rda.ucar.edu,data.gdex.ucar.edu,.ucar.edu${NO_PROXY:+,${NO_PROXY}}"
+    unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY
+    echo "proxy_bypass=1"
+  else
+    echo "proxy_bypass=0"
+  fi
+
   export PYTHON_BIN="${PYTHON_BIN:-python3}"
   export DATA_DIR
   export GDEX_YEAR="${GDEX_YEAR:-2026}"

@@ -135,6 +135,12 @@ crontab deploy/th-hpc4-login-crontab.example
 
 The login-node wrapper uses a lock so the midnight check will skip itself if an earlier download is still running.
 
+If logs show `Tunnel connection failed: 403 Forbidden`, the login environment is trying to use a proxy that rejects UCAR/GDEX. The login-node wrapper bypasses proxy variables for UCAR hosts by default. To force use of the site proxy instead:
+
+```bash
+GDEX_BYPASS_PROXY=0 bash deploy/th-hpc4-login-download.sh
+```
+
 The legacy `yhbatch` debug template remains in `deploy/th-hpc4-gdex-download.sub.example`, but it should only be used if the selected compute partition has external network access.
 
 ## Repository push
