@@ -34,7 +34,7 @@ run_download() {
   module add python/3.10 2>/dev/null || true
   module add python 2>/dev/null || true
 
-  if [ "${GDEX_BYPASS_PROXY:-1}" = "1" ]; then
+  if [ "${GDEX_BYPASS_PROXY:-0}" = "1" ]; then
     if env | grep -Eiq '^(https?_proxy|all_proxy)='; then
       echo "proxy_env_detected=1"
     else
@@ -52,6 +52,8 @@ run_download() {
   export DATA_DIR
   export GDEX_YEAR="${GDEX_YEAR:-2026}"
   export GDEX_MAX_WORKERS="${GDEX_MAX_WORKERS:-2}"
+  export GDEX_INSECURE_TLS="${GDEX_INSECURE_TLS:-0}"
+  echo "insecure_tls=${GDEX_INSECURE_TLS}"
 
   bash scripts/run_daily.sh
 

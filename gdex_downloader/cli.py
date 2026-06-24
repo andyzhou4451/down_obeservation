@@ -12,6 +12,7 @@ import logging
 import netrc
 import os
 import posixpath
+import ssl
 import sys
 import time
 import urllib.error
@@ -133,10 +134,12 @@ class URLClient:
         headers: Iterable[str],
         use_netrc: bool,
         user_agent: str,
+        insecure_tls: bool,
     ) -> None:
         self.timeout = timeout
         self.retries = retries
         self.retry_sleep = retry_sleep
+        self.ssl_context = ssl._create_unverified_context() if insecure_tls else None
         self.base_headers = {"User-Agent": user_agent}
         for raw in headers:
             name, sep, value = raw.partition(":")
@@ -160,7 +163,7 @@ class URLClient:
         last_error: Exception | None = None
         for attempt in range(self.retries + 1):
             try:
-                return urllib.request.urlopen(request, timeout=self.timeout)
+                return urllib.request.urlopen(request, timeout=self.timeout, context=self.ssl_context)
             except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
                 last_error = exc
                 if attempt >= self.retries:
@@ -572,6 +575,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--lock-stale-hours", type=float, default=36.0)
     parser.add_argument("--header", action="append", default=[], help="Extra HTTP header, e.g. 'Authorization: Bearer ...'.")
     parser.add_argument("--no-netrc", action="store_true", help="Disable ~/.netrc Basic Auth lookup.")
+    parser.add_argument("--insecure-tls", action="store_true", help="Disable HTTPS certificate verification. Use only for site proxy/CA issues.")
     parser.add_argument("--user-agent", default=DEFAULT_USER_AGENT)
     parser.add_argument("--verbose", action="store_true")
     return parser.parse_args(argv)
@@ -599,6 +603,7 @@ def main(argv: list[str] | None = None) -> int:
         headers=args.header,
         use_netrc=not args.no_netrc,
         user_agent=args.user_agent,
+        insecure_tls=args.insecure_tls,
     )
     manifest = JsonlWriter(args.state_dir / "manifest.jsonl")
     lock_path = args.state_dir / "gdex_downloader.lock"

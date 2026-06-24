@@ -61,6 +61,12 @@ class PathTests(unittest.TestCase):
         self.assertEqual(args.data_root, Path("../data"))
         self.assertEqual(args.state_dir, Path("../data/_state"))
         self.assertEqual(args.log_dir, Path("../data/_logs"))
+        self.assertFalse(args.insecure_tls)
+
+    def test_cli_accepts_insecure_tls_flag(self) -> None:
+        args = parse_args(["--insecure-tls"])
+
+        self.assertTrue(args.insecure_tls)
 
     def test_local_path_preserves_dataset_product_host_and_remote_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

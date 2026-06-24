@@ -13,6 +13,12 @@ GDEX_LOG_DIR="${GDEX_LOG_DIR:-${DATA_DIR}/_logs}"
 GDEX_MAX_WORKERS="${GDEX_MAX_WORKERS:-2}"
 GDEX_MAX_DEPTH="${GDEX_MAX_DEPTH:-8}"
 GDEX_MAX_PAGES="${GDEX_MAX_PAGES:-20000}"
+GDEX_INSECURE_TLS="${GDEX_INSECURE_TLS:-0}"
+
+EXTRA_ARGS=()
+if [ "${GDEX_INSECURE_TLS}" = "1" ]; then
+  EXTRA_ARGS+=(--insecure-tls)
+fi
 
 cd "${APP_DIR}"
 
@@ -25,4 +31,5 @@ exec "${PYTHON_BIN}" -m gdex_downloader \
   --max-workers "${GDEX_MAX_WORKERS}" \
   --max-depth "${GDEX_MAX_DEPTH}" \
   --max-pages "${GDEX_MAX_PAGES}" \
+  "${EXTRA_ARGS[@]}" \
   "$@"

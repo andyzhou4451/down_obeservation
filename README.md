@@ -135,19 +135,25 @@ crontab deploy/th-hpc4-login-crontab.example
 
 The login-node wrapper uses a lock so the midnight check will skip itself if an earlier download is still running.
 
-If logs show `Tunnel connection failed: 403 Forbidden`, the login environment is trying to use a proxy that rejects UCAR/GDEX. The login-node wrapper bypasses proxy variables for UCAR hosts by default. To force use of the site proxy instead:
+On the observed TH-HPC4 login node, direct DNS resolution fails but HTTPS through the site proxy can reach GDEX. The login-node wrapper therefore keeps proxy variables by default. If an administrator later provides direct DNS/external access, you can bypass the proxy:
 
 ```bash
-GDEX_BYPASS_PROXY=0 bash deploy/th-hpc4-login-download.sh
+GDEX_BYPASS_PROXY=1 bash deploy/th-hpc4-login-download.sh
 ```
 
-If logs then show `Name or service not known`, direct DNS/external access is also unavailable from the login node. Run the network diagnostic and send the output to the HPC administrator:
+If logs show `CERTIFICATE_VERIFY_FAILED` because the site proxy presents an expired or untrusted certificate, run with explicit insecure TLS mode:
+
+```bash
+GDEX_INSECURE_TLS=1 bash deploy/th-hpc4-login-download.sh
+```
+
+Run the network diagnostic and send the output to the HPC administrator when proxy or DNS behavior changes:
 
 ```bash
 bash deploy/th-hpc4-network-check.sh | tee ../data/_logs/network-check.log
 ```
 
-At that point the required site-side fix is one of: an approved proxy that permits UCAR/GDEX HTTPS, DNS/external access on the login/data-transfer node, or a dedicated data-transfer node. The downloader cannot bypass a site firewall or proxy policy by itself.
+If both proxy and direct modes fail, the required site-side fix is one of: an approved proxy that permits UCAR/GDEX HTTPS, DNS/external access on the login/data-transfer node, or a dedicated data-transfer node. The downloader cannot bypass a site firewall or proxy policy by itself.
 
 The legacy `yhbatch` debug template remains in `deploy/th-hpc4-gdex-download.sub.example`, but it should only be used if the selected compute partition has external network access.
 
