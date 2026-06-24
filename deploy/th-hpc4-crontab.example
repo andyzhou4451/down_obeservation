@@ -1,0 +1,14 @@
+# Install from the login node with:
+#   crontab deploy/th-hpc4-crontab.example
+#
+# Assumed layout:
+#   $HOME/down_obeservation/
+#   $HOME/data/
+#
+# The midnight line avoids submitting a duplicate chain when a gdex_download_loop
+# job is already queued or running.
+
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+0 0 * * * cd "$HOME/down_obeservation" && mkdir -p ../data/_logs && (squeue -u "$USER" -h -n gdex_download_loop | grep -q . || yhbatch deploy/th-hpc4-gdex-download.sub.example) >> ../data/_logs/yhbatch-submit.log 2>&1

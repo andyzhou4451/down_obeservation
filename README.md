@@ -116,7 +116,7 @@ Use `deploy/cron.example` if systemd timers are unavailable.
 
 ## TH-HPC4 / GPU-system scheduler alternative
 
-On TH-HPC4, submit jobs from the login node with `yhbatch`. The template uses the `debug` CPU partition because this downloader is network/IO-bound and resumes incomplete `.part` files:
+On TH-HPC4, submit jobs from the login node with `yhbatch`. The template uses the `debug` CPU partition because this downloader is network/IO-bound and resumes incomplete `.part` files. One debug job runs for about 27 minutes, then resubmits itself if the downloader did not finish cleanly:
 
 ```bash
 mkdir -p ../data/_logs
@@ -124,6 +124,19 @@ yhbatch deploy/th-hpc4-gdex-download.sub.example
 ```
 
 The TH-HPC4 example assumes `down_obeservation/` and `data/` are sibling directories.
+
+Start once after 30 minutes from the login node:
+
+```bash
+mkdir -p ../data/_logs
+nohup bash -lc 'sleep 1800; cd "$HOME/down_obeservation"; yhbatch deploy/th-hpc4-gdex-download.sub.example' >> ../data/_logs/yhbatch-delayed-submit.log 2>&1 &
+```
+
+Run the check every day at midnight:
+
+```bash
+crontab deploy/th-hpc4-crontab.example
+```
 
 ## Repository push
 

@@ -9,7 +9,10 @@
 #   default than GPU partitions when the site allows it.
 # - debug has a 30-minute time limit on the observed system; interrupted
 #   downloads resume from .part files on the next submission.
+# - This script stops before the debug time limit and resubmits itself until one
+#   downloader run exits successfully.
 
+#SBATCH --job-name=gdex_download_loop
 #SBATCH -p debug
 #SBATCH -N 1
 #SBATCH --ntasks=1
@@ -26,10 +29,24 @@ mkdir -p "${DATA_DIR}/_logs" "${DATA_DIR}/_state"
 JOB_ID="${SLURM_JOB_ID:-manual}"
 exec > "${DATA_DIR}/_logs/gdex-download-${JOB_ID}.log" 2>&1
 
+SCRIPT_PATH="${GDEX_YSBATCH_SCRIPT:-deploy/th-hpc4-gdex-download.sub.example}"
+RUN_SECONDS="${GDEX_RUN_SECONDS:-1620}"
+RESUBMIT_DELAY_SECONDS="${GDEX_RESUBMIT_DELAY_SECONDS:-90}"
+RESUBMIT_ON_FAILURE="${GDEX_RESUBMIT_ON_FAILURE:-1}"
+CHAIN_MAX_RUNS="${GDEX_CHAIN_MAX_RUNS:-0}"
+LOCK_STALE_HOURS="${GDEX_LOCK_STALE_HOURS:-0.01}"
+COUNT_FILE="${DATA_DIR}/_state/th-hpc4-gdex-chain-count.txt"
+CURRENT_COUNT="$(cat "${COUNT_FILE}" 2>/dev/null || echo 0)"
+CURRENT_COUNT=$((CURRENT_COUNT + 1))
+echo "${CURRENT_COUNT}" > "${COUNT_FILE}"
+
 echo "started_at=$(date -Is)"
 echo "workdir=$(pwd)"
 echo "data_dir=${DATA_DIR}"
 echo "job_id=${JOB_ID}"
+echo "chain_count=${CURRENT_COUNT}"
+echo "run_seconds=${RUN_SECONDS}"
+echo "lock_stale_hours=${LOCK_STALE_HOURS}"
 
 module add python/3.10 2>/dev/null || true
 module add python 2>/dev/null || true
@@ -39,6 +56,42 @@ export DATA_DIR
 export GDEX_YEAR="${GDEX_YEAR:-2026}"
 export GDEX_MAX_WORKERS="${GDEX_MAX_WORKERS:-2}"
 
-yhrun bash scripts/run_daily.sh
+set +e
+if command -v timeout >/dev/null 2>&1; then
+  timeout "${RUN_SECONDS}" yhrun bash scripts/run_daily.sh --lock-stale-hours "${LOCK_STALE_HOURS}"
+  RUN_STATUS=$?
+else
+  echo "warning=timeout_command_not_found"
+  yhrun bash scripts/run_daily.sh --lock-stale-hours "${LOCK_STALE_HOURS}"
+  RUN_STATUS=$?
+fi
+set -e
+
+echo "run_status=${RUN_STATUS}"
+
+if [ "${RUN_STATUS}" -eq 0 ]; then
+  rm -f "${COUNT_FILE}"
+  echo "result=complete"
+  echo "finished_at=$(date -Is)"
+  exit 0
+fi
+
+if [ "${CHAIN_MAX_RUNS}" -gt 0 ] && [ "${CURRENT_COUNT}" -ge "${CHAIN_MAX_RUNS}" ]; then
+  echo "result=stopped_at_chain_limit"
+  echo "chain_max_runs=${CHAIN_MAX_RUNS}"
+  echo "finished_at=$(date -Is)"
+  exit "${RUN_STATUS}"
+fi
+
+if [ "${RUN_STATUS}" -ne 124 ] && [ "${RESUBMIT_ON_FAILURE}" != "1" ]; then
+  echo "result=failed_without_resubmit"
+  echo "finished_at=$(date -Is)"
+  exit "${RUN_STATUS}"
+fi
+
+echo "result=resubmitting"
+echo "resubmit_delay_seconds=${RESUBMIT_DELAY_SECONDS}"
+sleep "${RESUBMIT_DELAY_SECONDS}"
+yhbatch "${SCRIPT_PATH}"
 
 echo "finished_at=$(date -Is)"
