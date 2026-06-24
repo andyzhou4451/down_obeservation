@@ -25,7 +25,10 @@ run_download() {
 
   if [ -f /etc/profile ]; then
     # Cron often starts with a minimal environment; this restores module setup on HPC systems.
-    . /etc/profile
+    set +u
+    # Some site profile scripts reference optional variables under nounset.
+    . /etc/profile >/dev/null 2>&1 || echo "warning=failed_to_source_etc_profile"
+    set -u
   fi
 
   module add python/3.10 2>/dev/null || true
