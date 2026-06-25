@@ -10,7 +10,7 @@ The downloader discovers files from configured GDEX listings or generates known 
 ## Requirements
 
 - Python 3.10+
-- Network access from the server to the configured GDEX endpoint. The default config uses `osdf-director.osg-htc.org`; the TH-HPC4 config uses `sdsc-cache.nationalresearchplatform.org:8443` for priority downloads and `data.gdex.ucar.edu` for final backfill checks.
+- Network access from the server to the configured GDEX endpoint. The default config uses `osdf-director.osg-htc.org`; the TH-HPC4 config uses `data.gdex.ucar.edu` because the observed site proxy rejects OSDF director and selected cache-host traffic.
 - Optional: `~/.netrc` or extra HTTP headers if your GDEX account/session requires authentication
 
 No third-party Python packages are required.
@@ -135,13 +135,13 @@ crontab deploy/th-hpc4-login-crontab.example
 
 The login-node wrapper uses a lock so the midnight check will skip itself if an earlier download is still running.
 
-On the observed TH-HPC4 login node, direct DNS resolution fails but HTTPS through the site proxy can reach selected external data services. The login-node wrapper therefore keeps proxy variables by default and uses `config/datasets.th-hpc4.json`, which generates daily file URLs in this order:
+On the observed TH-HPC4 login node, direct DNS resolution fails but HTTPS through the site proxy can reach `data.gdex.ucar.edu`. The login-node wrapper therefore keeps proxy variables by default and uses `config/datasets.th-hpc4.json`, which generates daily file URLs in this order:
 
-- New priority products under `https://sdsc-cache.nationalresearchplatform.org:8443/ncar/gdex/d735000/`: `cris` (`crisf4.YYYYMMDD.tar.gz`) and `mtiasi`
-- New PREPBUFR daily files under `https://sdsc-cache.nationalresearchplatform.org:8443/ncar/gdex/d337000/tarfiles/2026/`
+- New priority products under `https://data.gdex.ucar.edu/d735000/`: `cris` (`crisf4.YYYYMMDD.tar.gz`) and `mtiasi`
+- New PREPBUFR daily files under `https://data.gdex.ucar.edu/d337000/tarfiles/2026/`
 - Final backfill checks for already mostly downloaded `mhs`, `atms`, `amsu-a`, and `gpsro` under `https://data.gdex.ucar.edu/d735000/`
 
-The earlier OSDF director path is official, but the observed TH-HPC4 proxy returns `Tunnel connection failed: 403 Forbidden` for `osdf-director.osg-htc.org`. The TH-HPC4 config avoids that proxy block by using explicit cache or `data.gdex` file URLs directly.
+The earlier OSDF director path is official, but the observed TH-HPC4 proxy returns `Tunnel connection failed: 403 Forbidden` for `osdf-director.osg-htc.org` and for the tested `sdsc-cache.nationalresearchplatform.org:8443` endpoint. The TH-HPC4 config avoids those proxy blocks by using `data.gdex` file URLs directly.
 
 The TH-HPC4 wrapper defaults to one download worker to match UCAR/GDEX guidance against simultaneous file downloads.
 
@@ -175,17 +175,17 @@ grep -E 'Generated|Found|missing_remote|failed' "$(ls -t ../data/_logs/login-dow
 
 The log should include lines such as `Generated ... date-template candidate files` and `Found ... candidate files`.
 
-To test the TH-HPC4 priority cache paths manually on the login node:
+To test the TH-HPC4 `data.gdex` paths manually on the login node:
 
 ```bash
 mkdir -p ../data/_manual_wget_test
 cd ../data/_manual_wget_test
-wget --no-check-certificate -N https://sdsc-cache.nationalresearchplatform.org:8443/ncar/gdex/d735000/cris/2026/crisf4.20260101.tar.gz
-wget --no-check-certificate -N https://sdsc-cache.nationalresearchplatform.org:8443/ncar/gdex/d735000/mtiasi/2026/mtiasi.20260101.tar.gz
-wget --no-check-certificate -N https://sdsc-cache.nationalresearchplatform.org:8443/ncar/gdex/d337000/tarfiles/2026/prepbufr.20260101.nr.tar.gz
+wget --no-check-certificate -N https://data.gdex.ucar.edu/d735000/cris/2026/crisf4.20260101.tar.gz
+wget --no-check-certificate -N https://data.gdex.ucar.edu/d735000/mtiasi/2026/mtiasi.20260101.tar.gz
+wget --no-check-certificate -N https://data.gdex.ucar.edu/d337000/tarfiles/2026/prepbufr.20260101.nr.tar.gz
 ```
 
-As of 2026-06-25, sample checks found 2026 files for CRIS (`crisf4`), METOP-2 IASI (`mtiasi`), and GDAS PREPBUFR under the `sdsc-cache` URLs above. HIRS4 and SEVIRI are intentionally not included in the TH-HPC4 config.
+As of 2026-06-25, sample checks found 2026 files for CRIS (`crisf4`), METOP-2 IASI (`mtiasi`), and GDAS PREPBUFR under the `data.gdex` URLs above. HIRS4 and SEVIRI are intentionally not included in the TH-HPC4 config.
 
 The legacy `yhbatch` debug template remains in `deploy/th-hpc4-gdex-download.sub.example`, but it should only be used if the selected compute partition has external network access.
 

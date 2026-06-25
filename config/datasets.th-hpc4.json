@@ -1,23 +1,22 @@
 {
   "year": 2026,
   "allowed_hosts": [
-    "sdsc-cache.nationalresearchplatform.org",
     "data.gdex.ucar.edu"
   ],
   "datasets": [
     {
       "id": "d735000",
-      "label": "UCAR GDEX d735000 priority infrared sounder observations (TH-HPC4 sdsc-cache)",
-      "dataaccess_url": "https://sdsc-cache.nationalresearchplatform.org:8443/ncar/gdex/d735000/",
+      "label": "UCAR GDEX d735000 priority infrared sounder observations (TH-HPC4 data.gdex)",
+      "dataaccess_url": "https://data.gdex.ucar.edu/d735000/",
       "seeds": [],
       "date_templates": [
         {
           "product": "cris",
-          "url": "https://sdsc-cache.nationalresearchplatform.org:8443/ncar/gdex/d735000/cris/{year}/crisf4.{yyyymmdd}.tar.gz"
+          "url": "https://data.gdex.ucar.edu/d735000/cris/{year}/crisf4.{yyyymmdd}.tar.gz"
         },
         {
           "product": "mtiasi",
-          "url": "https://sdsc-cache.nationalresearchplatform.org:8443/ncar/gdex/d735000/mtiasi/{year}/mtiasi.{yyyymmdd}.tar.gz"
+          "url": "https://data.gdex.ucar.edu/d735000/mtiasi/{year}/mtiasi.{yyyymmdd}.tar.gz"
         }
       ],
       "scope_markers": [
@@ -40,13 +39,13 @@
     },
     {
       "id": "d337000",
-      "label": "UCAR GDEX d337000 unrestricted GDAS PREPBUFR daily tar files (TH-HPC4 sdsc-cache)",
-      "dataaccess_url": "https://sdsc-cache.nationalresearchplatform.org:8443/ncar/gdex/d337000/tarfiles/2026/",
+      "label": "UCAR GDEX d337000 unrestricted GDAS PREPBUFR daily tar files (TH-HPC4 data.gdex)",
+      "dataaccess_url": "https://data.gdex.ucar.edu/d337000/tarfiles/2026/",
       "seeds": [],
       "date_templates": [
         {
           "product": "gdas-prepbufr",
-          "url": "https://sdsc-cache.nationalresearchplatform.org:8443/ncar/gdex/d337000/tarfiles/{year}/prepbufr.{yyyymmdd}.nr.tar.gz"
+          "url": "https://data.gdex.ucar.edu/d337000/tarfiles/{year}/prepbufr.{yyyymmdd}.nr.tar.gz"
         }
       ],
       "scope_markers": [

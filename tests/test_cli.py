@@ -184,12 +184,12 @@ class PathTests(unittest.TestCase):
 
         self.assertEqual(relevant_links(links), links[1:])
 
-    def test_th_hpc4_config_prioritizes_new_sdsc_templates(self) -> None:
+    def test_th_hpc4_config_prioritizes_new_data_gdex_templates(self) -> None:
         _, allowed_hosts, datasets = load_config(Path("config/datasets.th-hpc4.json"))
 
         self.assertNotIn("data.rda.ucar.edu", allowed_hosts)
         self.assertNotIn("osdf-director.osg-htc.org", allowed_hosts)
-        self.assertIn("sdsc-cache.nationalresearchplatform.org", allowed_hosts)
+        self.assertNotIn("sdsc-cache.nationalresearchplatform.org", allowed_hosts)
         self.assertIn("data.gdex.ucar.edu", allowed_hosts)
         products_in_order = [
             template.product
@@ -202,8 +202,7 @@ class PathTests(unittest.TestCase):
         self.assertNotIn("seviri", products_in_order)
         self.assertTrue(all(not dataset.seeds for dataset in datasets))
         self.assertTrue(all("data.rda.ucar.edu" not in seed for dataset in datasets for seed in dataset.seeds))
-        self.assertTrue(all("sdsc-cache.nationalresearchplatform.org" in template.url for dataset in datasets[:2] for template in dataset.date_templates))
-        self.assertTrue(all("data.gdex.ucar.edu" in template.url for template in datasets[-1].date_templates))
+        self.assertTrue(all("data.gdex.ucar.edu" in template.url for dataset in datasets for template in dataset.date_templates))
 
     def test_local_path_preserves_dataset_product_host_and_remote_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

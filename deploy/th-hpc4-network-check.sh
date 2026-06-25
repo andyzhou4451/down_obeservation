@@ -4,8 +4,8 @@
 
 set -u
 
-HOSTS="sdsc-cache.nationalresearchplatform.org data.gdex.ucar.edu gdex.ucar.edu osdf-director.osg-htc.org"
-REQUIRED_URLS="https://sdsc-cache.nationalresearchplatform.org:8443/ncar/gdex/d735000/cris/2026/crisf4.20260101.tar.gz https://sdsc-cache.nationalresearchplatform.org:8443/ncar/gdex/d735000/mtiasi/2026/mtiasi.20260101.tar.gz https://sdsc-cache.nationalresearchplatform.org:8443/ncar/gdex/d337000/tarfiles/2026/prepbufr.20260101.nr.tar.gz"
+HOSTS="data.gdex.ucar.edu gdex.ucar.edu osdf-director.osg-htc.org"
+REQUIRED_URLS="https://data.gdex.ucar.edu/d735000/cris/2026/crisf4.20260101.tar.gz https://data.gdex.ucar.edu/d735000/mtiasi/2026/mtiasi.20260101.tar.gz https://data.gdex.ucar.edu/d337000/tarfiles/2026/prepbufr.20260101.nr.tar.gz"
 REFERENCE_URLS="https://data.gdex.ucar.edu/d735000/1bmhs/2026/1bmhs.20260101.tar.gz https://gdex.ucar.edu/datasets/d735000/dataaccess/"
 
 echo "started_at=$(date -Is)"
@@ -71,7 +71,7 @@ PY
   done
 }
 
-check_urls "required sdsc-cache HTTPS" "${REQUIRED_URLS}"
+check_urls "required data.gdex HTTPS" "${REQUIRED_URLS}"
 check_urls "reference HTTPS" "${REFERENCE_URLS}"
 
 echo "finished_at=$(date -Is)"

@@ -40,8 +40,8 @@ run_download() {
     else
       echo "proxy_env_detected=0"
     fi
-    export no_proxy="sdsc-cache.nationalresearchplatform.org,osdf-director.osg-htc.org,gdex.ucar.edu,data.rda.ucar.edu,data.gdex.ucar.edu,.ucar.edu${no_proxy:+,${no_proxy}}"
-    export NO_PROXY="sdsc-cache.nationalresearchplatform.org,osdf-director.osg-htc.org,gdex.ucar.edu,data.rda.ucar.edu,data.gdex.ucar.edu,.ucar.edu${NO_PROXY:+,${NO_PROXY}}"
+    export no_proxy="osdf-director.osg-htc.org,gdex.ucar.edu,data.rda.ucar.edu,data.gdex.ucar.edu,.ucar.edu${no_proxy:+,${no_proxy}}"
+    export NO_PROXY="osdf-director.osg-htc.org,gdex.ucar.edu,data.rda.ucar.edu,data.gdex.ucar.edu,.ucar.edu${NO_PROXY:+,${NO_PROXY}}"
     unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY
     echo "proxy_bypass=1"
   else
