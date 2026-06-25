@@ -13,6 +13,8 @@ from gdex_downloader.cli import (
     DateTemplateConfig,
     JsonlWriter,
     candidate_sort_key,
+    candidate_year_label,
+    discovery_years_for_dataset,
     download_candidate,
     generated_date_candidates,
     is_out_of_year_scope,
@@ -114,6 +116,59 @@ class FilterTests(unittest.TestCase):
             ],
         )
 
+    def test_generated_date_candidates_expand_hours(self) -> None:
+        dataset = DatasetConfig(
+            id="noaa-gridsat-b1",
+            label="test",
+            dataaccess_url="https://www.ncei.noaa.gov/data/geostationary-ir-channel-brightness-temperature-gridsat-b1/access/",
+            seeds=(),
+            date_templates=(
+                DateTemplateConfig(
+                    product="gridsat-b1",
+                    url="https://www.ncei.noaa.gov/data/geostationary-ir-channel-brightness-temperature-gridsat-b1/access/{year}/GRIDSAT-B1.{yyyy}.{mm}.{dd}.{hour}.v02r01.nc",
+                    hours=("00", "03"),
+                ),
+            ),
+            scope_markers=("geostationary-ir-channel-brightness-temperature-gridsat-b1", "gridsat-b1"),
+            products={"gridsat-b1": ("gridsat-b1",)},
+            file_extensions=(".nc",),
+            max_depth=0,
+            years=(2016, 2017),
+        )
+
+        candidates = generated_date_candidates(
+            dataset=dataset,
+            year=2016,
+            allowed_hosts={"www.ncei.noaa.gov"},
+            data_root=Path("/data"),
+            today=date(2016, 1, 1),
+        )
+
+        self.assertEqual(
+            [candidate.url for candidate in candidates],
+            [
+                "https://www.ncei.noaa.gov/data/geostationary-ir-channel-brightness-temperature-gridsat-b1/access/2016/GRIDSAT-B1.2016.01.01.00.v02r01.nc",
+                "https://www.ncei.noaa.gov/data/geostationary-ir-channel-brightness-temperature-gridsat-b1/access/2016/GRIDSAT-B1.2016.01.01.03.v02r01.nc",
+            ],
+        )
+
+    def test_discovery_year_helpers_use_dataset_years(self) -> None:
+        dataset = DatasetConfig(
+            id="noaa-gridsat-b1",
+            label="test",
+            dataaccess_url="https://www.ncei.noaa.gov/data/geostationary-ir-channel-brightness-temperature-gridsat-b1/access/",
+            seeds=(),
+            date_templates=(),
+            scope_markers=("gridsat-b1",),
+            products={},
+            file_extensions=(".nc",),
+            max_depth=0,
+            years=(2020, 2019, 2020),
+        )
+
+        self.assertEqual(discovery_years_for_dataset(dataset, 2026), (2019, 2020))
+        self.assertEqual(candidate_year_label(discovery_years_for_dataset(dataset, 2026)), "2019-2020")
+
     def test_candidate_sort_key_uses_template_product_order(self) -> None:
         dataset = DatasetConfig(
             id="d735000",
@@ -190,19 +245,24 @@ class PathTests(unittest.TestCase):
         self.assertNotIn("data.rda.ucar.edu", allowed_hosts)
         self.assertNotIn("osdf-director.osg-htc.org", allowed_hosts)
         self.assertNotIn("sdsc-cache.nationalresearchplatform.org", allowed_hosts)
+        self.assertIn("www.ncei.noaa.gov", allowed_hosts)
         self.assertIn("data.gdex.ucar.edu", allowed_hosts)
+        self.assertEqual(datasets[0].id, "noaa-gridsat-b1")
+        self.assertEqual(datasets[0].years, tuple(range(2016, 2027)))
+        self.assertEqual(datasets[0].date_templates[0].hours, ("00", "03", "06", "09", "12", "15", "18", "21"))
         products_in_order = [
             template.product
             for dataset in datasets
             for template in dataset.date_templates
         ]
 
-        self.assertEqual(products_in_order, ["cris", "mtiasi", "gdas-prepbufr", "mhs", "atms", "amsu-a", "gpsro"])
+        self.assertEqual(products_in_order, ["gridsat-b1", "cris", "mtiasi", "gdas-prepbufr", "mhs", "atms", "amsu-a", "gpsro"])
         self.assertNotIn("hirs4", products_in_order)
         self.assertNotIn("seviri", products_in_order)
         self.assertTrue(all(not dataset.seeds for dataset in datasets))
         self.assertTrue(all("data.rda.ucar.edu" not in seed for dataset in datasets for seed in dataset.seeds))
-        self.assertTrue(all("data.gdex.ucar.edu" in template.url for dataset in datasets for template in dataset.date_templates))
+        self.assertTrue("www.ncei.noaa.gov" in datasets[0].date_templates[0].url)
+        self.assertTrue(all("data.gdex.ucar.edu" in template.url for dataset in datasets[1:] for template in dataset.date_templates))
 
     def test_local_path_preserves_dataset_product_host_and_remote_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

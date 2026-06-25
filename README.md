@@ -1,7 +1,8 @@
 # down_obeservation
 
-Daily, resumable downloader for 2026 UCAR GDEX observation data:
+Daily, resumable downloader for NOAA/NCEI and UCAR/GDEX observation data:
 
+- `noaa-gridsat-b1`: NOAA NCEI GridSat-B1 geostationary IR channel brightness temperature, 2016-2026
 - `d735000`: CRIS, METOP-2 IASI, AMSU-A, ATMS, MHS, GPSRO/GNSSRO
 - `d337000`: unrestricted GDAS PREPBUFR daily tar files
 
@@ -10,7 +11,7 @@ The downloader discovers files from configured GDEX listings or generates known 
 ## Requirements
 
 - Python 3.10+
-- Network access from the server to the configured GDEX endpoint. The default config uses `osdf-director.osg-htc.org`; the TH-HPC4 config uses `data.gdex.ucar.edu` because the observed site proxy rejects OSDF director and selected cache-host traffic.
+- Network access from the server to the configured data endpoints. The TH-HPC4 config first uses `www.ncei.noaa.gov` for GridSat-B1, then `data.gdex.ucar.edu` for GDEX because the observed site proxy rejects OSDF director and selected cache-host traffic.
 - Optional: `~/.netrc` or extra HTTP headers if your GDEX account/session requires authentication
 
 No third-party Python packages are required.
@@ -25,6 +26,7 @@ parent/
   data/
     d735000/
     d337000/
+    noaa-gridsat-b1/
     _state/
     _logs/
 ```
@@ -135,8 +137,9 @@ crontab deploy/th-hpc4-login-crontab.example
 
 The login-node wrapper uses a lock so the midnight check will skip itself if an earlier download is still running.
 
-On the observed TH-HPC4 login node, direct DNS resolution fails but HTTPS through the site proxy can reach `data.gdex.ucar.edu`. The login-node wrapper therefore keeps proxy variables by default and uses `config/datasets.th-hpc4.json`, which generates daily file URLs in this order:
+On the observed TH-HPC4 login node, direct DNS resolution fails but HTTPS through the site proxy can reach `www.ncei.noaa.gov` and `data.gdex.ucar.edu`. The login-node wrapper therefore keeps proxy variables by default and uses `config/datasets.th-hpc4.json`, which generates file URLs in this order:
 
+- New priority GridSat-B1 files under `https://www.ncei.noaa.gov/data/geostationary-ir-channel-brightness-temperature-gridsat-b1/access/` for 2016-2026, eight 3-hourly `.nc` files per day
 - New priority products under `https://data.gdex.ucar.edu/d735000/`: `cris` (`crisf4.YYYYMMDD.tar.gz`) and `mtiasi`
 - New PREPBUFR daily files under `https://data.gdex.ucar.edu/d337000/tarfiles/2026/`
 - Final backfill checks for already mostly downloaded `mhs`, `atms`, `amsu-a`, and `gpsro` under `https://data.gdex.ucar.edu/d735000/`
@@ -175,17 +178,19 @@ grep -E 'Generated|Found|missing_remote|failed' "$(ls -t ../data/_logs/login-dow
 
 The log should include lines such as `Generated ... date-template candidate files` and `Found ... candidate files`.
 
-To test the TH-HPC4 `data.gdex` paths manually on the login node:
+To test the TH-HPC4 NCEI and `data.gdex` paths manually on the login node:
 
 ```bash
 mkdir -p ../data/_manual_wget_test
 cd ../data/_manual_wget_test
+wget --no-check-certificate -N https://www.ncei.noaa.gov/data/geostationary-ir-channel-brightness-temperature-gridsat-b1/access/2016/GRIDSAT-B1.2016.01.01.00.v02r01.nc
+wget --no-check-certificate -N https://www.ncei.noaa.gov/data/geostationary-ir-channel-brightness-temperature-gridsat-b1/access/2026/GRIDSAT-B1.2026.01.01.00.v02r01.nc
 wget --no-check-certificate -N https://data.gdex.ucar.edu/d735000/cris/2026/crisf4.20260101.tar.gz
 wget --no-check-certificate -N https://data.gdex.ucar.edu/d735000/mtiasi/2026/mtiasi.20260101.tar.gz
 wget --no-check-certificate -N https://data.gdex.ucar.edu/d337000/tarfiles/2026/prepbufr.20260101.nr.tar.gz
 ```
 
-As of 2026-06-25, sample checks found 2026 files for CRIS (`crisf4`), METOP-2 IASI (`mtiasi`), and GDAS PREPBUFR under the `data.gdex` URLs above. HIRS4 and SEVIRI are intentionally not included in the TH-HPC4 config.
+As of 2026-06-25, the NCEI index exposes year directories through 2026, with 2026 GridSat-B1 files such as `GRIDSAT-B1.2026.01.01.00.v02r01.nc`. Sample checks also found 2026 files for CRIS (`crisf4`), METOP-2 IASI (`mtiasi`), and GDAS PREPBUFR under the `data.gdex` URLs above. HIRS4 and SEVIRI are intentionally not included in the TH-HPC4 config.
 
 The legacy `yhbatch` debug template remains in `deploy/th-hpc4-gdex-download.sub.example`, but it should only be used if the selected compute partition has external network access.
 

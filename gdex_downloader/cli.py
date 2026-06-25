@@ -49,6 +49,8 @@ RELEVANT_LINK_KEYWORDS = (
     "d735000",
     "ds337",
     "ds735",
+    "gridsat",
+    "ncei",
 )
 
 
@@ -56,6 +58,7 @@ RELEVANT_LINK_KEYWORDS = (
 class DateTemplateConfig:
     product: str
     url: str
+    hours: tuple[str, ...] = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -69,6 +72,7 @@ class DatasetConfig:
     products: dict[str, tuple[str, ...]]
     file_extensions: tuple[str, ...]
     max_depth: int
+    years: tuple[int, ...] = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -260,6 +264,7 @@ def load_config(path: Path) -> tuple[int, set[str], list[DatasetConfig]]:
                     DateTemplateConfig(
                         product=str(template["product"]),
                         url=str(template["url"]),
+                        hours=tuple(str(hour).zfill(2) for hour in template.get("hours", [])),
                     )
                     for template in item.get("date_templates", [])
                 ),
@@ -267,6 +272,7 @@ def load_config(path: Path) -> tuple[int, set[str], list[DatasetConfig]]:
                 products=products,
                 file_extensions=tuple(str(ext).lower() for ext in item.get("file_extensions", [])),
                 max_depth=int(item.get("max_depth", 6)),
+                years=tuple(int(item_year) for item_year in item.get("years", [])),
             )
         )
     return default_year, allowed_hosts, datasets
@@ -384,7 +390,7 @@ def iter_year_dates(year: int, today: date | None = None) -> Iterable[date]:
         day += timedelta(days=1)
 
 
-def render_date_template(template: str, day: date) -> str:
+def render_date_template(template: str, day: date, hour: str | None = None) -> str:
     values = {
         "year": f"{day.year:04d}",
         "yyyy": f"{day.year:04d}",
@@ -393,6 +399,8 @@ def render_date_template(template: str, day: date) -> str:
         "mm": day.strftime("%m"),
         "dd": day.strftime("%d"),
         "doy": day.strftime("%j"),
+        "hour": "" if hour is None else hour,
+        "hh": "" if hour is None else hour,
     }
     try:
         return template.format(**values)
@@ -412,17 +420,19 @@ def generated_date_candidates(
     candidates = []
     for template in dataset.date_templates:
         for day in iter_year_dates(year, today=today):
-            url = normalize_url(render_date_template(template.url, day))
-            if not in_dataset_scope(url, dataset, allowed_hosts):
-                continue
-            if is_out_of_year_scope(url, year):
-                continue
-            if not matches_year(url, year):
-                continue
-            if not has_allowed_extension(url, dataset):
-                continue
-            local_path = local_path_for_url(data_root, dataset.id, template.product, url)
-            candidates.append(Candidate(dataset.id, template.product, url, local_path))
+            hours = template.hours or (None,)
+            for hour in hours:
+                url = normalize_url(render_date_template(template.url, day, hour))
+                if not in_dataset_scope(url, dataset, allowed_hosts):
+                    continue
+                if is_out_of_year_scope(url, year):
+                    continue
+                if not matches_year(url, year):
+                    continue
+                if not has_allowed_extension(url, dataset):
+                    continue
+                local_path = local_path_for_url(data_root, dataset.id, template.product, url)
+                candidates.append(Candidate(dataset.id, template.product, url, local_path))
     return candidates
 
 
@@ -433,6 +443,21 @@ def candidate_sort_key(dataset: DatasetConfig, candidate: Candidate) -> tuple[in
     if not product_order:
         return 0, candidate.url
     return product_order.get(candidate.product, len(product_order)), candidate.url
+
+
+def discovery_years_for_dataset(dataset: DatasetConfig, default_year: int) -> tuple[int, ...]:
+    if dataset.years:
+        return tuple(sorted(set(dataset.years)))
+    return (default_year,)
+
+
+def candidate_year_label(years: Iterable[int]) -> str:
+    ordered = sorted(set(years))
+    if not ordered:
+        return "unknown"
+    if len(ordered) == 1:
+        return str(ordered[0])
+    return f"{ordered[0]}-{ordered[-1]}"
 
 
 def local_path_for_url(data_root: Path, dataset_id: str, product: str, url: str) -> Path:
@@ -756,7 +781,7 @@ def write_candidate_list(path: Path, candidates: Iterable[Candidate]) -> None:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Download 2026 UCAR GDEX observation data.")
+    parser = argparse.ArgumentParser(description="Download configured observation datasets.")
     parser.add_argument("--config", type=Path, default=Path("config/datasets.json"))
     parser.add_argument("--year", type=int, default=None)
     parser.add_argument("--data-root", type=Path, default=Path("../data"))
@@ -815,26 +840,29 @@ def main(argv: list[str] | None = None) -> int:
 
     with SingleRunLock(lock_path, args.lock_stale_hours):
         all_candidates: list[Candidate] = []
+        discovery_years: list[int] = []
         for dataset in datasets:
-            all_candidates.extend(
-                discover_dataset(
-                    dataset=dataset,
-                    year=year,
-                    allowed_hosts=allowed_hosts,
-                    data_root=args.data_root,
-                    client=client,
-                    max_pages=args.max_pages,
-                    max_depth=args.max_depth,
-                    log_index_links=args.log_index_links,
-                    index_link_sample=args.index_link_sample,
-                    manifest=manifest,
+            for discovery_year in discovery_years_for_dataset(dataset, year):
+                discovery_years.append(discovery_year)
+                all_candidates.extend(
+                    discover_dataset(
+                        dataset=dataset,
+                        year=discovery_year,
+                        allowed_hosts=allowed_hosts,
+                        data_root=args.data_root,
+                        client=client,
+                        max_pages=args.max_pages,
+                        max_depth=args.max_depth,
+                        log_index_links=args.log_index_links,
+                        index_link_sample=args.index_link_sample,
+                        manifest=manifest,
+                    )
                 )
-            )
 
         if args.limit is not None:
             all_candidates = all_candidates[: args.limit]
 
-        candidate_list_path = args.state_dir / f"candidates-{year}.jsonl"
+        candidate_list_path = args.state_dir / f"candidates-{candidate_year_label(discovery_years)}.jsonl"
         write_candidate_list(candidate_list_path, all_candidates)
         LOG.info("Wrote candidate list: %s", candidate_list_path)
 

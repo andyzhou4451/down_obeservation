@@ -1,12 +1,61 @@
 {
   "year": 2026,
   "allowed_hosts": [
+    "www.ncei.noaa.gov",
     "gdex.ucar.edu",
     "data.rda.ucar.edu",
     "data.gdex.ucar.edu",
     "osdf-director.osg-htc.org"
   ],
   "datasets": [
+    {
+      "id": "noaa-gridsat-b1",
+      "label": "NOAA NCEI GridSat-B1 geostationary IR channel brightness temperature",
+      "dataaccess_url": "https://www.ncei.noaa.gov/data/geostationary-ir-channel-brightness-temperature-gridsat-b1/access/",
+      "years": [
+        2016,
+        2017,
+        2018,
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025,
+        2026
+      ],
+      "seeds": [],
+      "date_templates": [
+        {
+          "product": "gridsat-b1",
+          "url": "https://www.ncei.noaa.gov/data/geostationary-ir-channel-brightness-temperature-gridsat-b1/access/{year}/GRIDSAT-B1.{yyyy}.{mm}.{dd}.{hour}.v02r01.nc",
+          "hours": [
+            "00",
+            "03",
+            "06",
+            "09",
+            "12",
+            "15",
+            "18",
+            "21"
+          ]
+        }
+      ],
+      "scope_markers": [
+        "geostationary-ir-channel-brightness-temperature-gridsat-b1",
+        "gridsat-b1"
+      ],
+      "max_depth": 0,
+      "products": {
+        "gridsat-b1": [
+          "gridsat-b1"
+        ]
+      },
+      "file_extensions": [
+        ".nc"
+      ]
+    },
     {
       "id": "d735000",
       "label": "UCAR GDEX d735000 satellite and GPSRO observations",

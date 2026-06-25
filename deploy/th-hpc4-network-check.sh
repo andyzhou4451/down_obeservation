@@ -4,8 +4,8 @@
 
 set -u
 
-HOSTS="data.gdex.ucar.edu gdex.ucar.edu osdf-director.osg-htc.org"
-REQUIRED_URLS="https://data.gdex.ucar.edu/d735000/cris/2026/crisf4.20260101.tar.gz https://data.gdex.ucar.edu/d735000/mtiasi/2026/mtiasi.20260101.tar.gz https://data.gdex.ucar.edu/d337000/tarfiles/2026/prepbufr.20260101.nr.tar.gz"
+HOSTS="www.ncei.noaa.gov data.gdex.ucar.edu gdex.ucar.edu osdf-director.osg-htc.org"
+REQUIRED_URLS="https://www.ncei.noaa.gov/data/geostationary-ir-channel-brightness-temperature-gridsat-b1/access/2016/GRIDSAT-B1.2016.01.01.00.v02r01.nc https://www.ncei.noaa.gov/data/geostationary-ir-channel-brightness-temperature-gridsat-b1/access/2026/GRIDSAT-B1.2026.01.01.00.v02r01.nc https://data.gdex.ucar.edu/d735000/cris/2026/crisf4.20260101.tar.gz https://data.gdex.ucar.edu/d735000/mtiasi/2026/mtiasi.20260101.tar.gz https://data.gdex.ucar.edu/d337000/tarfiles/2026/prepbufr.20260101.nr.tar.gz"
 REFERENCE_URLS="https://data.gdex.ucar.edu/d735000/1bmhs/2026/1bmhs.20260101.tar.gz https://gdex.ucar.edu/datasets/d735000/dataaccess/"
 
 echo "started_at=$(date -Is)"
