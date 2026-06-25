@@ -1,42 +1,23 @@
 {
   "year": 2026,
   "allowed_hosts": [
+    "sdsc-cache.nationalresearchplatform.org",
     "data.gdex.ucar.edu"
   ],
   "datasets": [
     {
       "id": "d735000",
-      "label": "UCAR GDEX d735000 satellite and GPSRO observations (TH-HPC4 data.gdex daily templates)",
-      "dataaccess_url": "https://data.gdex.ucar.edu/d735000/",
+      "label": "UCAR GDEX d735000 priority infrared sounder observations (TH-HPC4 sdsc-cache)",
+      "dataaccess_url": "https://sdsc-cache.nationalresearchplatform.org:8443/ncar/gdex/d735000/",
       "seeds": [],
       "date_templates": [
         {
-          "product": "amsu-a",
-          "url": "https://data.gdex.ucar.edu/d735000/1bamua/{year}/1bamua.{yyyymmdd}.tar.gz"
+          "product": "cris",
+          "url": "https://sdsc-cache.nationalresearchplatform.org:8443/ncar/gdex/d735000/cris/{year}/crisf4.{yyyymmdd}.tar.gz"
         },
         {
-          "product": "atms",
-          "url": "https://data.gdex.ucar.edu/d735000/atms/{year}/atms.{yyyymmdd}.tar.gz"
-        },
-        {
-          "product": "hirs4",
-          "url": "https://data.gdex.ucar.edu/d735000/1bhrs4/{year}/1bhrs4.{yyyymmdd}.tar.gz"
-        },
-        {
-          "product": "mhs",
-          "url": "https://data.gdex.ucar.edu/d735000/1bmhs/{year}/1bmhs.{yyyymmdd}.tar.gz"
-        },
-        {
-          "product": "gpsro",
-          "url": "https://data.gdex.ucar.edu/d735000/gpsro/{year}/gpsro.{yyyymmdd}.tar.gz"
-        },
-        {
-          "product": "seviri",
-          "url": "https://data.gdex.ucar.edu/d735000/sevcsr/{year}/sevcsr.{yyyymmdd}.tar.gz"
-        },
-        {
-          "product": "seviri",
-          "url": "https://data.gdex.ucar.edu/d735000/airsev/{year}/airsev.{yyyymmdd}.tar.gz"
+          "product": "mtiasi",
+          "url": "https://sdsc-cache.nationalresearchplatform.org:8443/ncar/gdex/d735000/mtiasi/{year}/mtiasi.{yyyymmdd}.tar.gz"
         }
       ],
       "scope_markers": [
@@ -44,40 +25,13 @@
       ],
       "max_depth": 0,
       "products": {
-        "amsu-a": [
-          "amsu-a",
-          "amsua",
-          "amsu_a",
-          "1bamua"
+        "cris": [
+          "cris",
+          "crisf4"
         ],
-        "atms": [
-          "atms"
-        ],
-        "hirs4": [
-          "hirs4",
-          "hirs-4",
-          "hirs_4",
-          "1bhrs4"
-        ],
-        "mhs": [
-          "mhs",
-          "1bmhs"
-        ],
-        "gpsro": [
-          "gpsro",
-          "gps-ro",
-          "gps_ro",
-          "gnssro",
-          "gnss-ro",
-          "radiooccultation",
-          "radio_occultation"
-        ],
-        "seviri": [
-          "seviri",
-          "sevcsr",
-          "airsev",
-          "msg",
-          "meteosat"
+        "mtiasi": [
+          "mtiasi",
+          "iasi"
         ]
       },
       "file_extensions": [
@@ -86,13 +40,13 @@
     },
     {
       "id": "d337000",
-      "label": "UCAR GDEX d337000 unrestricted GDAS PREPBUFR daily tar files (TH-HPC4 data.gdex daily templates)",
-      "dataaccess_url": "https://data.gdex.ucar.edu/d337000/tarfiles/2026/",
+      "label": "UCAR GDEX d337000 unrestricted GDAS PREPBUFR daily tar files (TH-HPC4 sdsc-cache)",
+      "dataaccess_url": "https://sdsc-cache.nationalresearchplatform.org:8443/ncar/gdex/d337000/tarfiles/2026/",
       "seeds": [],
       "date_templates": [
         {
           "product": "gdas-prepbufr",
-          "url": "https://data.gdex.ucar.edu/d337000/tarfiles/{year}/prepbufr.{yyyymmdd}.nr.tar.gz"
+          "url": "https://sdsc-cache.nationalresearchplatform.org:8443/ncar/gdex/d337000/tarfiles/{year}/prepbufr.{yyyymmdd}.nr.tar.gz"
         }
       ],
       "scope_markers": [
@@ -104,6 +58,61 @@
           "prepbufr",
           "prep-bufr",
           "prep_bufr"
+        ]
+      },
+      "file_extensions": [
+        ".tar.gz"
+      ]
+    },
+    {
+      "id": "d735000",
+      "label": "UCAR GDEX d735000 backfill checks for mostly completed products (TH-HPC4 data.gdex)",
+      "dataaccess_url": "https://data.gdex.ucar.edu/d735000/",
+      "seeds": [],
+      "date_templates": [
+        {
+          "product": "mhs",
+          "url": "https://data.gdex.ucar.edu/d735000/1bmhs/{year}/1bmhs.{yyyymmdd}.tar.gz"
+        },
+        {
+          "product": "atms",
+          "url": "https://data.gdex.ucar.edu/d735000/atms/{year}/atms.{yyyymmdd}.tar.gz"
+        },
+        {
+          "product": "amsu-a",
+          "url": "https://data.gdex.ucar.edu/d735000/1bamua/{year}/1bamua.{yyyymmdd}.tar.gz"
+        },
+        {
+          "product": "gpsro",
+          "url": "https://data.gdex.ucar.edu/d735000/gpsro/{year}/gpsro.{yyyymmdd}.tar.gz"
+        }
+      ],
+      "scope_markers": [
+        "d735000"
+      ],
+      "max_depth": 0,
+      "products": {
+        "mhs": [
+          "mhs",
+          "1bmhs"
+        ],
+        "atms": [
+          "atms"
+        ],
+        "amsu-a": [
+          "amsu-a",
+          "amsua",
+          "amsu_a",
+          "1bamua"
+        ],
+        "gpsro": [
+          "gpsro",
+          "gps-ro",
+          "gps_ro",
+          "gnssro",
+          "gnss-ro",
+          "radiooccultation",
+          "radio_occultation"
         ]
       },
       "file_extensions": [

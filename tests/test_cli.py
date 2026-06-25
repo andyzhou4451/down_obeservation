@@ -12,6 +12,7 @@ from gdex_downloader.cli import (
     DatasetConfig,
     DateTemplateConfig,
     JsonlWriter,
+    candidate_sort_key,
     download_candidate,
     generated_date_candidates,
     is_out_of_year_scope,
@@ -113,6 +114,32 @@ class FilterTests(unittest.TestCase):
             ],
         )
 
+    def test_candidate_sort_key_uses_template_product_order(self) -> None:
+        dataset = DatasetConfig(
+            id="d735000",
+            label="test",
+            dataaccess_url="https://data.gdex.ucar.edu/d735000/",
+            seeds=(),
+            date_templates=(
+                DateTemplateConfig(product="mhs", url="https://x/{yyyymmdd}.tar.gz"),
+                DateTemplateConfig(product="atms", url="https://x/{yyyymmdd}.tar.gz"),
+                DateTemplateConfig(product="amsu-a", url="https://x/{yyyymmdd}.tar.gz"),
+            ),
+            scope_markers=("d735000",),
+            products={},
+            file_extensions=(".tar.gz",),
+            max_depth=0,
+        )
+        candidates = [
+            Candidate("d735000", "amsu-a", "https://x/amsua.tar.gz", Path("/tmp/amsua.tar.gz")),
+            Candidate("d735000", "mhs", "https://x/mhs.tar.gz", Path("/tmp/mhs.tar.gz")),
+            Candidate("d735000", "atms", "https://x/atms.tar.gz", Path("/tmp/atms.tar.gz")),
+        ]
+
+        ordered = sorted(candidates, key=lambda candidate: candidate_sort_key(dataset, candidate))
+
+        self.assertEqual([candidate.product for candidate in ordered], ["mhs", "atms", "amsu-a"])
+
 
 class PathTests(unittest.TestCase):
     def test_cli_defaults_use_sibling_data_directory(self) -> None:
@@ -157,17 +184,26 @@ class PathTests(unittest.TestCase):
 
         self.assertEqual(relevant_links(links), links[1:])
 
-    def test_th_hpc4_config_uses_data_gdex_templates(self) -> None:
+    def test_th_hpc4_config_prioritizes_new_sdsc_templates(self) -> None:
         _, allowed_hosts, datasets = load_config(Path("config/datasets.th-hpc4.json"))
 
         self.assertNotIn("data.rda.ucar.edu", allowed_hosts)
         self.assertNotIn("osdf-director.osg-htc.org", allowed_hosts)
+        self.assertIn("sdsc-cache.nationalresearchplatform.org", allowed_hosts)
         self.assertIn("data.gdex.ucar.edu", allowed_hosts)
-        for dataset in datasets:
-            self.assertFalse(dataset.seeds)
-            self.assertTrue(dataset.date_templates)
-            self.assertTrue(all("data.rda.ucar.edu" not in seed for seed in dataset.seeds))
-            self.assertTrue(all("data.gdex.ucar.edu" in template.url for template in dataset.date_templates))
+        products_in_order = [
+            template.product
+            for dataset in datasets
+            for template in dataset.date_templates
+        ]
+
+        self.assertEqual(products_in_order, ["cris", "mtiasi", "gdas-prepbufr", "mhs", "atms", "amsu-a", "gpsro"])
+        self.assertNotIn("hirs4", products_in_order)
+        self.assertNotIn("seviri", products_in_order)
+        self.assertTrue(all(not dataset.seeds for dataset in datasets))
+        self.assertTrue(all("data.rda.ucar.edu" not in seed for dataset in datasets for seed in dataset.seeds))
+        self.assertTrue(all("sdsc-cache.nationalresearchplatform.org" in template.url for dataset in datasets[:2] for template in dataset.date_templates))
+        self.assertTrue(all("data.gdex.ucar.edu" in template.url for template in datasets[-1].date_templates))
 
     def test_local_path_preserves_dataset_product_host_and_remote_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

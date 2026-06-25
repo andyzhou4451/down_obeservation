@@ -426,6 +426,15 @@ def generated_date_candidates(
     return candidates
 
 
+def candidate_sort_key(dataset: DatasetConfig, candidate: Candidate) -> tuple[int, str]:
+    product_order: dict[str, int] = {}
+    for template in dataset.date_templates:
+        product_order.setdefault(template.product, len(product_order))
+    if not product_order:
+        return 0, candidate.url
+    return product_order.get(candidate.product, len(product_order)), candidate.url
+
+
 def local_path_for_url(data_root: Path, dataset_id: str, product: str, url: str) -> Path:
     parsed = urllib.parse.urlparse(url)
     host = sanitize_component(parsed.hostname or "unknown-host")
@@ -601,7 +610,7 @@ def discover_dataset(
     if queue:
         LOG.warning("Discovery stopped at max_pages=%d for %s", max_pages, dataset.id)
     LOG.info("Found %d candidate files for %s", len(candidates), dataset.id)
-    return sorted(candidates.values(), key=lambda item: item.url)
+    return sorted(candidates.values(), key=lambda item: candidate_sort_key(dataset, item))
 
 
 def remote_size(client: URLClient, url: str) -> int | None:
