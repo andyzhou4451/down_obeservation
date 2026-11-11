@@ -568,7 +568,7 @@ def run_pipeline(args, *, client=None, scheduler=None) -> dict:
                 removed = cleanup_quarter(root, snapshot, items)
                 batch.update(stage="complete", published=len(items), raw_files_removed=removed, completed_at=utcnow())
                 atomic_json(batch_path, batch)
-                report(completed_quarters=state["completed_quarters"] + 1, stage="quarter_complete", batch_verified=len(items))
+                report(completed_quarters=state["completed_quarters"] + 1, stage="quarter_complete", batch_verified=len(items), batch_pending=0)
                 LOG.info("Quarter %s verified: %d NPY files, removed %d managed cache files", quarter, len(items), removed)
             not_listed = sum(len(row["not_listed"]) for row in snapshot["coverage"].values())
             report(stage="complete", job_id=None, finished_at=utcnow(), verified=len(snapshot["files"]), not_listed=not_listed)

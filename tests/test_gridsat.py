@@ -374,6 +374,7 @@ class EndToEndTests(unittest.TestCase):
                 result = run_pipeline(args, client=client)
             self.assertEqual(result["stage"], "complete")
             self.assertEqual(result["completed_quarters"], 2)
+            self.assertEqual(result["batch_pending"], 0)
             for item in snap["files"]:
                 output = np.load(root / item["npy"], allow_pickle=False)
                 self.assertEqual(output.shape, (3, 181, 360))
