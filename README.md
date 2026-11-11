@@ -14,7 +14,96 @@ The downloader discovers files from configured GDEX listings or generates known 
 - Network access from the server to the configured data endpoints. The TH-HPC4 config first uses `www.ncei.noaa.gov` for GridSat-B1, then `data.gdex.ucar.edu` for GDEX because the observed site proxy rejects OSDF director and selected cache-host traffic.
 - Optional: `~/.netrc` or extra HTTP headers if your GDEX account/session requires authentication
 
-No third-party Python packages are required.
+No third-party Python packages are required for download-only mode. The separate
+GridSat 1-degree processing workflow uses NumPy and netCDF4 from the existing
+5090 science environment; it does not install or change that environment.
+
+## 5090: quarterly GridSat to 1-degree NPY
+
+This is a separate **one-shot** pipeline, not the daily GDEX downloader. It reads
+the official NOAA year listings once, freezes the published-file inventory, and
+processes 2016-2026 in calendar-quarter order. The last quarter can be incomplete:
+unlisted time slots are reported, not counted as successfully downloaded. No cron
+entry or persistent service is installed.
+
+On `tianhe-5090-ln0` (`th-hpc6-ln0`, account `yangjh18`):
+
+```bash
+cd /fs6/home/yangjh18/down_obeservation
+mkdir -p ../data/gridsat-b1/_logs
+nohup bash deploy/th-hpc6-gridsat.sh run \
+  > ../data/gridsat-b1/_logs/launcher.log 2>&1 < /dev/null &
+```
+
+The wrapper loads the site's login environment for proxy access and keeps HTTPS
+certificate verification enabled. Downloads run serially on the login node;
+after all published files in one quarter are validated, a CPU-only Slurm worker
+uses 2 CPUs and 8 GiB on partition `5090`. It uses the existing
+`/fs6/home/yangjh18/gdas_healda_20260916/runtime/science-python.sh` launcher.
+Override it with `PYTHON_LAUNCHER` or change the sibling data root with `DATA_ROOT`.
+No GPU is requested. The controller waits for the worker and validates every
+output before removing only that quarter's owned raw files.
+
+```bash
+# Progress; this command does not start a downloader or submit a job.
+bash deploy/th-hpc6-gridsat.sh status
+squeue -u "$USER"
+tail -f ../data/gridsat-b1/_logs/launcher.log
+
+# Inventory preview: no downloads, processing, or state writes.
+bash deploy/th-hpc6-gridsat.sh run --dry-run
+
+# Optional full output checksum verification.
+bash deploy/th-hpc6-gridsat.sh status --verify
+```
+
+Restart with the same `run` command after interruption. Completed NPY files are
+checked against durable receipts, so deleted raw files are not downloaded again.
+An existing Slurm job is reattached rather than resubmitted. A failed job leaves
+the raw cache in place and can be retried by restarting. Kernel locks prevent
+overlapping controllers; **do not delete lock files to bypass an active run**.
+An ambiguous submission is stopped for inspection rather than risking a
+duplicate job. Check the named job in `squeue`/`sacct` and the corresponding
+`_state/batches/` record before taking recovery action.
+
+Data layout under `/fs6/home/yangjh18/data/gridsat-b1`:
+
+```text
+dataset.json
+npy/2016/2016-01-01/gridsat_20160101_t00.npy
+_state/snapshot.json
+_state/receipts/
+_state/batches/
+_cache/2016Q1/                 # temporary; cleaned only after batch validation
+_logs/
+```
+
+Each ordinary `float32` NPY has shape `(3, 181, 360)`: channels are
+`irwin_cdr`, `irwvp`, `vschn`, in that order; units are K, K, and dimensionless.
+Latitude runs from 90 to -90, longitude from 0 to 359. All eight nominal UTC
+times are retained. Missing observations remain NaN, including the polar rows;
+there is no temporal averaging or normalization.
+
+The port reproduces the previous `Gridsat/gridsat_interp_1deg.py` numerical
+contract: nearest source coordinate, left coordinate on ties, shared spatial
+indices for all channels, and squared planar distance `< (0.500001)^2`.
+Raw fill values are masked before float32 scaling. No `valid_range` filter,
+bilinear averaging, alternate-valid-neighbor search, or hole filling is added.
+Visible reflectance is not treated as brightness temperature. Only the infrared
+window channel has NOAA CDR quality; the other channels retain their original
+limitations and missingness. See the [NOAA product documentation](https://www.ncei.noaa.gov/products/gridded-geostationary-brightness-temperature).
+
+For isolated pilot runs, use separate data roots and explicit inclusive dates;
+do not change the date range of an existing frozen snapshot:
+
+```bash
+DATA_ROOT="$HOME/data/gridsat-pilot-2016" bash deploy/th-hpc6-gridsat.sh run \
+  --start-date 2016-01-01 --end-date 2016-01-01
+```
+
+Local development can use `python -m gdex_downloader.gridsat run --executor local`
+with the same date/root options. `python -m unittest discover -s tests` covers
+the original downloader and the isolated GridSat pipeline.
 
 ## Directory layout
 
