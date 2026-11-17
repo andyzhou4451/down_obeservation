@@ -293,6 +293,12 @@ git branch -M main
 git push -u origin main
 ```
 
+## IBTrACS Global Best Tracks
+
+The independent [IBTrACS workflow](docs/ibtracs.md) downloads NOAA v04r01 and
+extracts 2016-2023 UTC calendar-year records, preserving all agencies and units.
+It defaults to `~/data/ibtracs` and does not change the GDEX or GridSat jobs.
+
 ## Verification
 
 ```bash
