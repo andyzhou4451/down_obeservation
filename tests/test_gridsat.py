@@ -5,6 +5,7 @@ import io
 import json
 import tempfile
 import unittest
+from urllib.error import HTTPError
 from datetime import date
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -173,6 +174,59 @@ class DownloadTests(unittest.TestCase):
         client.request.side_effect = request
         download_one(self.root, self.snapshot, self.item, client, retries=0)
         self.assertEqual((self.root / self.item["raw"]).read_bytes(), self.payload)
+
+    def test_mirror_fallback_on_get_keeps_snapshot_identity(self):
+        mirror = f"https://noaa-cdr-gridsat-b1-pds.s3.amazonaws.com/data/2016/{NAME}"
+        requests = []
+
+        def request(url, method="GET", headers=None):
+            requests.append((url, method))
+            if url == mirror and method == "GET":
+                raise HTTPError(url, 503, "temporarily unavailable", {}, None)
+            return Response(b"" if method == "HEAD" else self.payload, self.headers)
+
+        download_one(self.root, self.snapshot, self.item, Mock(request=request), prefer_s3=True, retries=0)
+        canonical = self.item["url"]
+        self.assertEqual(requests, [(mirror, "HEAD"), (mirror, "GET"), (canonical, "HEAD"), (canonical, "GET")])
+        rec = read_json(transfer_path(self.root, self.item))
+        self.assertEqual((rec["url"], rec["transfer_url"]), (canonical, canonical))
+        self.assertEqual((self.root / self.item["raw"]).read_bytes(), self.payload)
+
+    def test_mirror_never_appends_to_a_legacy_partial_from_another_host(self):
+        self.mark_partial(b"wrong")
+        canonical = self.item["url"]
+        mirror = f"https://noaa-cdr-gridsat-b1-pds.s3.amazonaws.com/data/2016/{NAME}"
+        requests = []
+
+        def request(url, method="GET", headers=None):
+            requests.append((url, method))
+            if url == canonical:
+                raise HTTPError(url, 503, "temporarily unavailable", {}, None)
+            self.assertEqual(url, mirror)
+            if method == "GET":
+                self.assertNotIn("Range", headers)
+            return Response(b"" if method == "HEAD" else self.payload, self.headers)
+
+        download_one(self.root, self.snapshot, self.item, Mock(request=request), prefer_s3=True, retries=0)
+        self.assertEqual(requests, [(canonical, "HEAD"), (mirror, "HEAD"), (mirror, "GET")])
+        rec = read_json(transfer_path(self.root, self.item))
+        self.assertEqual((rec["url"], rec["transfer_url"]), (canonical, mirror))
+        self.assertEqual((self.root / self.item["raw"]).read_bytes(), self.payload)
+
+    def test_unavailable_mirror_body_preserves_resumable_original_partial(self):
+        part = self.mark_partial(self.payload[:5])
+        record_path = transfer_path(self.root, self.item)
+        original = read_json(record_path)
+
+        def request(url, method="GET", headers=None):
+            if url == self.item["url"] or method == "GET":
+                raise HTTPError(url, 503, "temporarily unavailable", {}, None)
+            return Response(headers=self.headers)
+
+        with self.assertRaises(HTTPError):
+            download_one(self.root, self.snapshot, self.item, Mock(request=request), prefer_s3=True, retries=0)
+        self.assertEqual(part.read_bytes(), self.payload[:5])
+        self.assertEqual(read_json(record_path), original)
 
     def test_server_ignoring_range_restarts_without_appending(self):
         self.mark_partial(self.payload[:5])
@@ -360,6 +414,8 @@ class EndToEndTests(unittest.TestCase):
                         var.set_auto_maskandscale(False)
                         var[:] = np.full((1, 3, 3), 10000, dtype=np.int16)
                 payloads[item["url"]] = source.read_bytes()
+                mirror = f"https://noaa-cdr-gridsat-b1-pds.s3.amazonaws.com/data/2016/{item['name']}"
+                payloads[mirror] = payloads[item["url"]]
             client = Mock()
 
             def request(url, method="GET", headers=None):
@@ -382,6 +438,7 @@ class EndToEndTests(unittest.TestCase):
                 self.assertFalse((root / item["raw"]).exists())
             self.assertEqual(pipeline_status(root, verify=True)["verified_npy"], 2)
             client.reset_mock()
+            args = parse_args(["run", "--data-root", str(root), "--executor", "local", "--workers", "1", "--retries", "0", "--prefer-s3"])
             result = run_pipeline(args, client=client)
             self.assertEqual(result["stage"], "complete")
             client.request.assert_not_called()
@@ -391,6 +448,7 @@ class EndToEndTests(unittest.TestCase):
             result = run_pipeline(args, client=client)
             self.assertEqual(result["stage"], "complete")
             self.assertEqual(client.request.call_count, 2)
+            self.assertEqual(client.request.call_args.args[0], mirror)
             self.assertEqual(pipeline_status(root, verify=True)["verified_npy"], 2)
 
 

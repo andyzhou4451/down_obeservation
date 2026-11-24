@@ -24,6 +24,7 @@ from pathlib import Path
 from .cli import DEFAULT_USER_AGENT, HrefParser, URLClient
 
 BASE_URL = "https://www.ncei.noaa.gov/data/geostationary-ir-channel-brightness-temperature-gridsat-b1/access/"
+S3_BASE_URL = "https://noaa-cdr-gridsat-b1-pds.s3.amazonaws.com/data/"
 HOURS = tuple(range(0, 24, 3))
 FILE_RE = re.compile(r"GRIDSAT-B1\.(\d{4})\.(\d{2})\.(\d{2})\.(\d{2})\.v02r01\.nc")
 QUARTER_RE = re.compile(r"\d{4}Q[1-4]")
@@ -268,7 +269,7 @@ def _check_owner(record: dict | None, snapshot: dict, item: dict) -> None:
         raise ValueError(f"Refusing to alter an unmanaged cache file: {item['raw']}")
 
 
-def download_one(root: Path, snapshot: dict, item: dict, client, *, retries=3, retry_sleep=5.0, progress=None) -> None:
+def download_one(root: Path, snapshot: dict, item: dict, client, *, prefer_s3=False, retries=3, retry_sleep=5.0, progress=None) -> None:
     from .gridsat_processing import validate_source
     dest = safe_path(root, item["raw"])
     part = safe_path(root, item["raw"] + ".part")
@@ -293,85 +294,108 @@ def download_one(root: Path, snapshot: dict, item: dict, client, *, retries=3, r
         atomic_json(record_path, record)
     else:
         _check_owner(record, snapshot, item)
-    for attempt in range(retries + 1):
+    urls = [item["url"]]
+    if prefer_s3:
+        mirror = f"{S3_BASE_URL}{item['time'][:4]}/{item['name']}"
+        urls.insert(0, mirror)
+        # Resume an existing partial on its original host first when possible.
+        if part.exists() and record.get("transfer_url", item["url"]) == item["url"]:
+            urls.reverse()
+
+    def fetch(transfer_url: str) -> None:
+        with client.request(transfer_url, method="HEAD") as response:
+            total = int(response.headers.get("Content-Length", "0"))
+            etag = response.headers.get("ETag", "")
+            validator = etag if etag and not etag.startswith("W/") else response.headers.get("Last-Modified", "")
+        if total <= 0:
+            raise ValueError("NOAA did not supply a positive Content-Length")
+        offset = part.stat().st_size if part.exists() else 0
+        if offset and (
+            record.get("transfer_url", item["url"]) != transfer_url or not validator
+            or record.get("total") != total or record.get("validator") != validator or offset > total
+        ):
+            offset = 0
+        transfer = {"transfer_url": transfer_url, "total": total, "validator": validator}
+        if shutil.disk_usage(dest.parent).free < total - offset + 256 * 1024 * 1024:
+            raise OSError("Insufficient free space for next GridSat file plus safety margin")
+        if offset < total:
+            headers = {"Accept-Encoding": "identity"}
+            if offset:
+                headers["Range"] = f"bytes={offset}-"
+                if validator:
+                    headers["If-Range"] = validator
+            with client.request(transfer_url, headers=headers) as response:
+                status = getattr(response, "status", 200)
+                if "text/html" in response.headers.get("Content-Type", "").lower():
+                    raise ValueError("Download returned HTML instead of NetCDF")
+                if status == 206:
+                    match = CONTENT_RANGE.fullmatch(response.headers.get("Content-Range", ""))
+                    if match is None or tuple(map(int, match.groups())) != (offset, total - 1, total):
+                        raise ValueError("Invalid or mismatched Content-Range")
+                    mode = "ab" if offset else "wb"
+                elif status == 200:
+                    offset = 0
+                    mode = "wb"
+                else:
+                    raise ValueError(f"Unexpected download HTTP status {status}")
+                length = int(response.headers.get("Content-Length", "0"))
+                if length != total - offset:
+                    raise ValueError("GET and HEAD content lengths disagree")
+                written = offset
+                last_progress = 0.0
+                with part.open(mode) as handle:
+                    # Relabel the partial only after its resumed or replacement GET was accepted.
+                    record.update(transfer, updated_at=utcnow())
+                    atomic_json(record_path, record)
+                    while True:
+                        block = response.read(1024 * 1024)
+                        if not block:
+                            break
+                        handle.write(block)
+                        written += len(block)
+                        if written > total:
+                            raise ValueError("Download exceeds expected length")
+                        if progress and time.monotonic() - last_progress >= 5:
+                            progress(written, total)
+                            last_progress = time.monotonic()
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                if written != total:
+                    raise ValueError(f"Truncated transfer: {written}/{total} bytes")
+        if part.stat().st_size != total:
+            raise ValueError("Partial file has incorrect length")
         try:
-            with client.request(item["url"], method="HEAD") as response:
-                total = int(response.headers.get("Content-Length", "0"))
-                etag = response.headers.get("ETag", "")
-                validator = etag if etag and not etag.startswith("W/") else response.headers.get("Last-Modified", "")
-            if total <= 0:
-                raise ValueError("NOAA did not supply a positive Content-Length")
-            offset = part.stat().st_size if part.exists() else 0
-            if offset and (not validator or record.get("total") != total or record.get("validator") != validator or offset > total):
-                part.unlink()
-                offset = 0
-            record.update(total=total, validator=validator, updated_at=utcnow())
+            validate_source(part, expected_time=item["time"])
+        except Exception:
+            # A complete but invalid transfer cannot be repaired by Range.
+            record["validator"] = None
             atomic_json(record_path, record)
-            if shutil.disk_usage(dest.parent).free < total - offset + 256 * 1024 * 1024:
-                raise OSError("Insufficient free space for next GridSat file plus safety margin")
-            if offset < total:
-                headers = {"Accept-Encoding": "identity"}
-                if offset:
-                    headers["Range"] = f"bytes={offset}-"
-                    if validator:
-                        headers["If-Range"] = validator
-                with client.request(item["url"], headers=headers) as response:
-                    status = getattr(response, "status", 200)
-                    if "text/html" in response.headers.get("Content-Type", "").lower():
-                        raise ValueError("Download returned HTML instead of NetCDF")
-                    if status == 206:
-                        match = CONTENT_RANGE.fullmatch(response.headers.get("Content-Range", ""))
-                        if match is None or tuple(map(int, match.groups())) != (offset, total - 1, total):
-                            raise ValueError("Invalid or mismatched Content-Range")
-                        mode = "ab" if offset else "wb"
-                    elif status == 200:
-                        offset = 0
-                        mode = "wb"
-                    else:
-                        raise ValueError(f"Unexpected download HTTP status {status}")
-                    length = int(response.headers.get("Content-Length", "0"))
-                    if length != total - offset:
-                        raise ValueError("GET and HEAD content lengths disagree")
-                    written = offset
-                    last_progress = 0.0
-                    with part.open(mode) as handle:
-                        while True:
-                            block = response.read(1024 * 1024)
-                            if not block:
-                                break
-                            handle.write(block)
-                            written += len(block)
-                            if written > total:
-                                raise ValueError("Download exceeds expected length")
-                            if progress and time.monotonic() - last_progress >= 5:
-                                progress(written, total)
-                                last_progress = time.monotonic()
-                        handle.flush()
-                        os.fsync(handle.fileno())
-                    if written != total:
-                        raise ValueError(f"Truncated transfer: {written}/{total} bytes")
-            if part.stat().st_size != total:
-                raise ValueError("Partial file has incorrect length")
+            raise
+        sha256 = digest_file(part)
+        os.replace(part, dest)
+        record.update(transfer, status="downloaded", size=total, sha256=sha256, updated_at=utcnow())
+        atomic_json(record_path, record)
+        if progress:
+            progress(total, total)
+        LOG.info("Downloaded and validated %s (%d bytes)", item["name"], total)
+
+    for attempt in range(retries + 1):
+        for url in urls:
             try:
-                validate_source(part, expected_time=item["time"])
-            except Exception:
-                # A complete but invalid transfer cannot be repaired by Range.
-                record["validator"] = None
-                atomic_json(record_path, record)
-                raise
-            sha256 = digest_file(part)
-            os.replace(part, dest)
-            record.update(status="downloaded", size=total, sha256=sha256, updated_at=utcnow())
-            atomic_json(record_path, record)
-            if progress:
-                progress(total, total)
-            LOG.info("Downloaded and validated %s (%d bytes)", item["name"], total)
-            return
-        except Exception as exc:
-            if attempt >= retries:
-                raise
-            LOG.warning("Download attempt %d failed for %s: %s", attempt + 1, item["name"], exc)
-            time.sleep(retry_sleep * (attempt + 1))
+                fetch(url)
+                return
+            except Exception as exc:
+                if isinstance(exc, urllib.error.HTTPError):
+                    exc.close()
+                if url != urls[-1] and isinstance(exc, (urllib.error.URLError, TimeoutError, ConnectionError)):
+                    LOG.warning("Request failed for %s (%s), trying %s", url, exc, urls[-1])
+                    continue
+                if attempt >= retries:
+                    raise
+                delay = retry_sleep * (attempt + 1)
+                LOG.warning("Download attempt %d failed for %s: %s, retrying in %.0fs", attempt + 1, item["name"], exc, delay)
+                time.sleep(delay)
+                break
 
 
 def _convert_task(source: str, dest: str, stamp: str) -> dict:
@@ -545,7 +569,10 @@ def run_pipeline(args, *, client=None, scheduler=None) -> dict:
                 report(stage="downloading", batch_verified=len(items) - len(pending), batch_pending=len(pending))
                 for number, item in enumerate(pending, 1):
                     report(current_file=item["name"], download_index=number, current_bytes=0, total_bytes=None)
-                    download_one(root, snapshot, item, client, retries=args.retries, retry_sleep=args.retry_sleep, progress=lambda done, total: report(current_bytes=done, total_bytes=total))
+                    download_one(
+                        root, snapshot, item, client, prefer_s3=getattr(args, "prefer_s3", False), retries=args.retries,
+                        retry_sleep=args.retry_sleep, progress=lambda done, total: report(current_bytes=done, total_bytes=total),
+                    )
                 if pending:
                     report(stage="processing", current_file=None, current_bytes=None, total_bytes=None)
                     if args.executor == "local":
@@ -611,6 +638,7 @@ def parse_args(argv=None):
     run.add_argument("--workers", type=int, default=2)
     run.add_argument("--python-launcher", default=DEFAULT_LAUNCHER)
     run.add_argument("--poll-seconds", type=float, default=30.0)
+    run.add_argument("--prefer-s3", action="store_true", help="Prefer NOAA's public S3 file archive and use NCEI as a fallback")
     run.add_argument("--timeout", type=float, default=120.0)
     run.add_argument("--retries", type=int, default=3)
     run.add_argument("--retry-sleep", type=float, default=5.0)

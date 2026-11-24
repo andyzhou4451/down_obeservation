@@ -57,6 +57,12 @@ bash deploy/th-hpc6-gridsat.sh run --dry-run
 bash deploy/th-hpc6-gridsat.sh status --verify
 ```
 
+For NCEI outages, add `--prefer-s3` to `run` to read the same files from the
+[NOAA GridSat-B1 public bucket](https://registry.opendata.aws/noaa-cdr-fundamental/).
+The NCEI inventory stays fixed. Each transfer records the download URL and can
+fall back to the other archive on connection or HTTP errors. For long outages,
+`--retries 48 --retry-sleep 75` waits 75 seconds longer on each retry, up to one hour.
+
 Restart with the same `run` command after interruption. Completed NPY files are
 checked against durable receipts, so deleted raw files are not downloaded again.
 An existing Slurm job is reattached rather than resubmitted. A failed job leaves
